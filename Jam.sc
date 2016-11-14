@@ -91,7 +91,7 @@ Jam{
 		});
 	}
 
-	*afterBoot {
+	*afterBootLiveLab {
 		fork {
 			Pdefn(\front,Pxrand([0,1,2],inf));
 			Pdefn(\back,Pxrand([8,9,10],inf));
@@ -121,9 +121,7 @@ Jam{
 		Server.default = Server.local;
 
 		Server.default.waitForBoot({
-			"/Users/JamieBeverley/Desktop/SuperCollider Stuff/Instruments.scd".loadPaths;
-			//"/Users/JamieBeverley/InstrumentsSend.scd".loadPaths;
-
+			"~/Library/Application Support/SuperCollider/Extensions/Personal/Instruments.scd".loadPaths;
 
 			Tdef (\work, {
 				"/Users/JamieBeverley/Desktop/SuperCollider Stuff/LoadPaths/SampleBuffers.scd".loadPaths;
