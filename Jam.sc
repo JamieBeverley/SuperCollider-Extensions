@@ -8,6 +8,9 @@ Jam{
 
 	}
 
+	*soundTest{
+	{SinOsc.ar(440,mul:0.1)*EnvGen.ar(Env.perc(),doneAction:2)}.play
+	}
 
 	*codeShare{
 		|oscPort=8000,ipAddr="127.0.0.1",name|
@@ -89,6 +92,123 @@ Jam{
 			Pbindef(\perc,\out, (0..7));
 			Pbindef(\bass,\out, (0..7));
 		});
+	}
+
+	*launchKeyGui{
+		|width=600,height=200|
+
+		var patterns = Object!8;
+		var synthDefs = ''!8;
+		var currentSynth= 'default';
+		var synths = Object!127;
+		var cc = (-80.dbamp)!8;
+		var windowBounds = Rect(0,0,width,height);
+		var patternTextFields = Object!8;
+		var synthDefTextFields = ''!8;
+
+		var window = Window("Launch Key",windowBounds);
+		~really = 0.001;
+		MIDIClient.init;
+		MIDIIn.connectAll;
+
+		window.front;
+
+		for(0,7,{
+			|i|
+			var textBounds = Rect((width/8)*i+(width/20/8),0.1*height, (9/10)*(width/8), 25);
+			var staticTextBounds = Rect(((width/8)*i)+((width/20)/8)+(((9/10)*(width/8))/2),0.1*height-20, (9/10)*(width/8), 25);
+			var staticText = StaticText(window, staticTextBounds);
+			staticText.string = (i+1).asString;
+			patternTextFields[i]=TextField(window,textBounds);
+			patternTextFields[i].keyDownAction = {
+				|doc, char, mod, unicode, keycode, key|
+				if((mod==1048576)&& (key==16777220),{
+					patterns[i] = Pdef(patternTextFields[i].string.asSymbol);
+					Pbindef(patterns[i].key).quant=0.5;
+					Pbindef(patterns[i].key,\db,Pfunc({cc[i]}));
+				});
+			};
+
+
+		});
+
+
+		for(0,7,{
+			|i|
+			var textBounds = Rect((width/8)*i+(width/20/8),0.9*height-20, (9/10)*(width/8), 25);
+			var staticTextBounds = Rect(((width/8)*i)+((width/20)/8)+(((9/10)*(width/8))/2),0.9*height, (9/10)*(width/8), 25);
+			var staticText = StaticText(window, staticTextBounds);
+			staticText.string = (i+9).asString;
+			synthDefTextFields[i]=TextField(window,textBounds);
+			synthDefTextFields[i].keyDownAction = {synthDefs[i] = synthDefTextFields[i].string.asSymbol;};
+
+
+		});
+
+	/*	for(0,7,{
+			|i|
+
+
+		});*/
+
+		MIDIdef(\keyboardOn,{
+			|val,nm,chan,src|
+			val = val.linexp(0,127,-60.dbamp,0.dbamp);
+			synths[nm] = Synth(currentSynth,[freq:nm.midicps,gate:1,amp:val]);
+
+			[val,nm,chan,src].postln;
+
+		},msgType:\noteOn,chan:0);
+
+		MIDIdef(\keyboardOff,{
+			|val,nm,chan,src|
+
+			synths[nm].set(\gate,0);
+
+			[val,nm,chan,src].postln;
+
+		},msgType:\noteOff,chan:0);
+
+		MIDIdef(\launchKeyMini,{
+			|val,nm,chan,src|
+
+			if (((nm<40) && (nm>35)),{nm=nm-27});
+			if (((nm>39) && (nm<44)),{nm=nm-39});
+			if (((nm>47) && (nm<52)),{nm=nm-43});
+			if (((nm>43) && (nm <48)), {nm=nm-31});
+			//If its a performance pad:
+			if ((nm<9),{
+				if(patterns[nm-1].isPlaying, {patterns[nm-1].stop;},  {patterns[nm-1].play;});
+			},
+			{
+				currentSynth = synthDefs[nm-9];
+			}
+			);
+
+			[val,nm,chan,src].postln;
+		},msgType:\noteOn,chan:9
+		);
+
+		MIDIdef(\launchKeyMiniCC,{
+			|val,nm,chan,src|
+			nm = nm-20;
+			val = val.linexp(0,127,0.0001,1).ampdb;
+
+			// val = (val*val*val*val/(127*127*127*127)).ampdb;
+/*
+			Pbindef(patterns[nm-1].key).quant=0;
+			Pbindef(patterns[nm-1].key, \db, Pfunc({val},1));
+			Pbindef(patterns[nm-1].key).stop;
+			Pbindef(patterns[nm-1].key).play;
+			Pbindef(patterns[nm-1].key).quant = 0.5;*/
+			cc[nm-1]= val;
+			patterns[nm-1].key.postln;
+			// Pbindef(patterns[i].key,\db,Pfuncn(cc[i],inf));
+			// Pbindef(patterns[nm-1].key,\db,Pfuncn({cc[nm-1]},inf));
+			[val,nm,chan,src].postln;
+		},msgType:\control
+		);
+		// Pdef(patterns[0].key,\db,Pfunc({cc[0]}));
 	}
 
 	*afterBootLiveLab {
@@ -173,21 +293,21 @@ Jam{
 	}
 
 	*d1{
-		|patternName,instrumentPattern,slow=1,degradeBy=0,db=(-20)|
-		var e=Jam.spreadDurations(instrumentPattern);
-		var instPat=instrumentPattern.flat;
+		|patternName,patternType,pattern,slow=1,degradeBy=0|
+		var e=Jam.spreadDurations(pattern);
+		var instPat=pattern.flat;
 		var randomPattern=[];
 
-		for(0,instrumentPattern.flat.size-1,{
+		for(0,pattern.flat.size-1,{
 			arg i;
 			randomPattern=randomPattern.add(Pwrand([instPat[i],\rest],[1-degradeBy,degradeBy],1));
 		});
 
 
 		if( degradeBy!=0,{
-			Pbindef(patternName,\db,db,\instrument,Pseq(randomPattern,inf),\dur, Pseq(e*slow,inf)).play(quant:instrumentPattern.flatten.size);});
+			Pbindef(patternName,patternType,Pseq(randomPattern,inf),\dur, Pseq(e*slow,inf)).play;});
 
-		if( degradeBy==0,{Pbindef(patternName,\db,db,\instrument,Pseq(instrumentPattern.flat,inf),\dur, Pseq(e*slow,inf)).play(quant:instrumentPattern.flatten.size);	});
+		if( degradeBy==0,{Pbindef(patternName,patternType,Pseq(pattern.flat,inf),\dur, Pseq(e*slow,inf)).play;	});
 
 
 		Jam.layers = Jam.layers.add(Pbindef(patternName));

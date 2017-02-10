@@ -20,6 +20,35 @@ var hho = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/hh/007_hh3openhh.w
 var sna = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/hh/012_hh3snare2.wav");
 
 
+b = Buffer.read(s,"~/Desktop/madmono.wav".standardizePath);
+
+SynthDef(\madGrain,{
+	arg rate=1,pos=0,amp=0.1,out=0,sustain=1.0;
+	var audio = PlayBuf.ar(1,b.bufnum,rate:rate.clip(0,16)*BufRateScale.kr(b.bufnum),startPos:pos.clip(0,1)*BufFrames.kr(b.bufnum));
+	audio=audio*EnvGen.ar(Env([0,1,0],[sustain/2,sustain/2],curve:'welch'),doneAction:2);
+	Out.ar(out,audio*(amp.clip(0,1)));
+}).add;
+
+/*SynthDef(\jsynth, {
+	arg freq=440, out=0, amp=0.1, sustain=2;
+	var audio, env,high, env2, legatosus,e2;
+	e2= EnvGen.ar(Env.circle([1,1,4,4,2,2,8,8,16,16],[0.1,0.01]/4));
+	legatosus = sustain * Rand(0.1, 1);
+	env = Env.new([0,1,0.5,0.2,0], (legatosus)!4);
+	audio = Mix.ar(SinOsc.ar(freq:e2*freq, mul:amp*(-5.dbamp)));
+	audio = audio + Splay.ar(Saw.ar(freq:freq/[2,4,8,16].scramble, mul:amp*(-20.dbamp)));
+	high = DelayN.ar(Mix.ar(Saw.ar(freq:[4,2,0.5]*freq*Line.ar(IRand(4,8),IRand(0,4),sustain*Rand(1,0.5)),mul:amp*(-15.dbamp))),1,0.1);
+
+
+
+	audio = audio * EnvGen.ar(env, doneAction:2);
+	env2 = IRand(200,500);//Env.new ([440, 700, 300 ]/2, [0.125, 0.125]);
+	audio = LPF.ar(audio,env2)+(high * EnvGen.ar(env));
+
+	audio = Compander.ar(audio, audio, thresh:-18.dbamp=0.1, slopeAbove:1/20);
+	Out.ar(out, audio);
+}).add;*/
+
 SynthDef(\rest,{
 	arg dur;
 	var audio =SinOsc.ar(mul:-300.dbamp);
@@ -35,7 +64,7 @@ SynthDef(\crash,{
  }).add;
 
 SynthDef(\pad,{
-	arg out, freq, amp, gate=1,sus=8,vib=4;
+	arg out, freq, amp=0.1, gate=1,sus=8,vib=4;
 	var audio,env;
 	env = EnvGen.ar(Env.asr(2,sustainLevel:0.9,releaseTime:3),gate:gate,doneAction:2);
 
@@ -48,6 +77,25 @@ SynthDef(\pad,{
 
 }
 ).add;
+
+SynthDef(\fm1, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp=0.1, dur, hfoMod=2;
+
+	// index values usually are between 0 and 24
+	// carPartial :: modPartial => car/mod ratio
+
+	var hfo;
+	var audio;
+
+	var envhfo = EnvGen.ar(Env.sine(dur),doneAction:2);
+	var env = EnvGen.ar(Env.perc(0.05*dur,0.9*dur,curve:-2),doneAction:2);
+
+	hfo = SinOsc.ar(freq:freq * modPartial,phase:0,mul: freq*index*SinOsc.ar(hfoMod/dur,mul:0.5,add:0.5));
+	audio = SinOsc.ar(freq:(freq * 1) + hfo,mul: amp).squared*env;
+
+	Out.ar(	bus,[audio,audio])
+}).add;
+
+
 //Dr 0 fm
 SynthDef(\fm29,
 	{
@@ -67,6 +115,58 @@ SynthDef(\fm29,
 		Out.ar(out,aud!2);
 	}
 ).add;
+
+SynthDef(\soft, {
+	|freq=440, amp=0.1, out, lpf=880, modPartial=1,gate=1,at=0.05,dur|
+
+	var audio = LPF.ar(Mix.ar(Saw.ar(freq:freq, mul:amp*2.5)),freq:freq*XLine.ar(0.25,1,at.clip(0.01,1))/2,mul:6.dbamp);
+	var amb = BPF.ar(PinkNoise.ar(amp*3.5),freq,0.0225);
+
+
+
+	// audio = LPF.ar(audio,lpf)*Line.ar(1,0.5,1);
+	amb = amb*EnvGen.ar(Env.adsr(at+0.2,0.4,sustainLevel:0.9,releaseTime:1.5),gate:gate,doneAction:2);
+	// audio = audio*EnvGen.ar(Env.adsr(at,0.1,sustainLevel:0.4,releaseTime:0.25),gate:gate,doneAction:0);
+	audio = audio*EnvGen.ar(Env.perc(at,releaseTime:1.5,curve:-8));
+	audio = audio+amb;
+
+
+	Out.ar(0,audio!2);
+
+}).add;
+
+SynthDef(\fm26, {
+	|freq=440, amp=0.1, out, lpf=880, modPartial=1,gate=1,at=0.05,dur|
+
+	var mod = SinOsc.ar(freq*modPartial,mul:freq*modPartial*4)*EnvGen.ar(Env.adsr(at,0.3,0.5,0.5,1));
+	var audio = SinOsc.ar(freq:freq + mod,mul:amp);
+
+
+
+	audio = LPF.ar(audio,lpf)*Line.ar(1,0.5,1);
+	audio = audio*EnvGen.ar(Env.adsr(at,0.3,sustainLevel:0.4,releaseTime:0.5),gate:gate,doneAction:2);
+
+
+	Out.ar(0,audio!2);
+
+}).add;
+
+SynthDef(\flutter, {
+	|freq=440, amp=0.1, out, lpf=880, modPartial=1,gate=1,at=0.05,dur,cycle=16|
+
+	var mod = EnvGen.ar(Env.circle([2,2,1,1,3,3,4,4,5,5,9,9,7,7,8,8],[0.99,0.01]/cycle));
+	var mod1 = SinOsc.ar(freq*modPartial,mul:freq*modPartial*2);
+	var audio = SinOsc.ar(freq:freq*mod+mod1*mod,mul:amp);
+
+
+
+	audio = LPF.ar(audio,lpf)*Line.ar(1,0.5,1);
+	audio = audio*EnvGen.ar(Env.adsr(at,0.3,sustainLevel:0.8,releaseTime:1),gate:gate,doneAction:2);
+
+
+	Out.ar(0,audio!2);
+
+}).add;
 
 //808  _________________________________________________________________________________
 
@@ -305,7 +405,7 @@ arg sustain, freq,at=2, amp,chop=2*sustain,linb=0.04,line=1,out=0,gate=1;
 //HFO FM Synth (Triangular HFO Oscillator)_____________________________________________________________________________________
 // Multiuse
 
-SynthDef(\fmt, { arg bus = 0, freq = 440, gate=1,modPartial = 1, index = 3, amp, dur, hfoMod=3;
+SynthDef(\fmt, { arg bus = 0, freq = 440, gate=1,modPartial = 1, index = 3, amp=0.1, dur, hfoMod=3;
 
 
 
@@ -326,7 +426,7 @@ SynthDef(\fmt, { arg bus = 0, freq = 440, gate=1,modPartial = 1, index = 3, amp,
 //HFO FM Synth 3 - linear envelope_______________________________________________________________________________
 // Multiuse
 
-SynthDef(\fm3, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp, dur, hfoMod=3;
+SynthDef(\fm3, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp=0.1, dur, hfoMod=3;
 
 	// index values usually are between 0 and 24
 	// carPartial :: modPartial => car/mod ratio
@@ -416,7 +516,7 @@ SynthDef(\full,
 
 //Future house fm synth_____________________________________________________________________________
 
-/*SynthDef(\fut, { arg bus = 0, dt=0.4, at=0.01,freq = 440, gate=1,modPartial = 8, curve= -8,index = 3, amp, dur;
+/*SynthDef(\fut, { arg bus = 0, dt=0.4, at=0.01,freq = 440, gate=1,modPartial = 8, curve= -8,index = 3, amp=0.1, dur;
 
 
 
@@ -434,7 +534,7 @@ SynthDef(\full,
 
 /*
 SynthDef(\fut, {
-	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp, sustain;
+	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1, sustain;
 
 
 
@@ -455,7 +555,7 @@ SynthDef(\fut, {
 }).add;*/
 
 SynthDef(\fm6, {
-	arg out = 0, freq = 220, gate=1,modPartial=5, curve= -4,index = 3, amp, sustain;
+	arg out = 0, freq = 220, gate=1,modPartial=5, curve= -4,index = 3, amp=0.01, sustain=1;
 
 
 
@@ -474,7 +574,7 @@ SynthDef(\fm6, {
 }).add;
 
 SynthDef(\fut, {
-	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=(-20.dbamp),doneAction=2;
+	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1,doneAction=2;
 	var hfo = SinOsc.ar(freq:freq*modPartial/4,mul: freq*modPartial);
 	var envhfo= EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:0.1,releaseTime:0.1,curve:-3),doneAction:0)*hfo;
 	var audio = SinOsc.ar(freq:freq+envhfo,mul: amp);
@@ -492,7 +592,7 @@ SynthDef(\fut, {
 //Fm simple_____________________________________________________________________________________
 // Multiuse
 
-SynthDef(\fms, { arg bus = 0, dt=0.02,at=0.02,freq = 440, gate=1,modPartial = 1, curve= -8,index = 3, amp, dur, hfoMod=3;
+SynthDef(\fms, { arg bus = 0, dt=0.02,at=0.02,freq = 440, gate=1,modPartial = 1, curve= -8,index = 3, amp=0.1, dur, hfoMod=3;
 
 
 
@@ -511,7 +611,7 @@ SynthDef(\fms, { arg bus = 0, dt=0.02,at=0.02,freq = 440, gate=1,modPartial = 1,
 //HFO FM Synth ADSR Env._____________________________________________________________________________________
 // Multiuse
 
-SynthDef(\fma, { arg bus = 0, dt=0.02,at=0.02,freq = 440, gate=1,modPartial = 1, curve= -8,index = 3, amp, dur, hfoMod=3;
+SynthDef(\fma, { arg bus = 0, dt=0.02,at=0.02,freq = 440, gate=1,modPartial = 1, curve= -8,index = 3, amp=0.1, dur, hfoMod=3;
 
 
 
@@ -530,7 +630,7 @@ SynthDef(\fma, { arg bus = 0, dt=0.02,at=0.02,freq = 440, gate=1,modPartial = 1,
 // Multiuse
 
 
-SynthDef(\fmp, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp, dur, hfoMod=3;
+SynthDef(\fmp, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp=0.1, dur, hfoMod=3;
 	var env = EnvGen.ar(Env.perc(0.05*dur,0.9*dur,curve:-2),doneAction:2);
 	var hfo = SinOsc.ar(freq:freq * modPartial,phase:0,mul: freq*index*SinOsc.ar(hfoMod/dur,mul:0.5,add:0.5));
 	var audio = SinOsc.ar(freq:(freq * 1) + hfo,mul: amp).squared*env;
@@ -541,7 +641,7 @@ SynthDef(\fmp, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index 
 //HFO FM Synth__________________________________________________________________________________________
 // Multiuse
 
-SynthDef(\fm1, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp, dur;
+SynthDef(\fm1, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, amp=0.1, dur;
 	var hfo;
 	var audio;
 
@@ -631,7 +731,7 @@ SynthDef(\berm,
 //Verb_________________________________________________________________________________
 SynthDef(\verb,
 	{
-		arg freq, gate=1, amp, out=0,div=2;
+		arg freq, gate=1, amp=0.1, out=0,div=2;
 
 		var mod = SinOsc.ar(freq*div,mul:freq*(1/div),add:freq);
 
@@ -653,7 +753,7 @@ SynthDef(\verb,
 
 SynthDef(\womp2,
 	{
-	arg freq, amp, sustain,chopr=3, numharm,sustainlvl=0.4,gate=1;
+	arg freq, amp=0.1, sustain,chopr=3, numharm,sustainlvl=0.4,gate=1;
 		var nh = SinOsc.ar(freq:1/4,mul:1,add:1);
 		var audio = LPF.ar(Blip.ar(freq,mul:amp,numharm:numharm*nh),freq:6000*LFPar.ar(freq:sustain*chopr,add:0.5,mul:0.5));
 		var env = EnvGen.ar(Env.adsr(attackTime:0.05,decayTime:0.3,sustainLevel:sustainlvl,releaseTime:0.5),gate:gate,doneAction:2);
@@ -666,7 +766,7 @@ SynthDef(\womp2,
 
 SynthDef(\womp,
 	{
-	arg freq, out=0, amp, chopr, dur, numharm,sustainlvl=0.4,gate=1,at=0.03,dt=0.3,rt=0.5;
+	arg freq, out=0, amp=0.1, chopr, dur, numharm,sustainlvl=0.4,gate=1,at=0.03,dt=0.3,rt=0.5;
 		var nh = SinOsc.ar(freq:chopr,phase:SinOsc.ar(freq:1/2,mul:3.14/2,add:3.14/2),mul:1,add:1);
 		var audio = LPF.ar(Blip.ar(freq,mul:amp,numharm:numharm*nh),freq:6000*LFPar.ar(freq:dur*chopr,add:0.5,mul:0.5));
 		var env = EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:sustainlvl,releaseTime:rt),gate:gate,doneAction:2);
@@ -720,7 +820,7 @@ SynthDef(\baw,
 // Situational
 SynthDef(\release,
 	{
-		arg amp= -20.dbamp, lpf=4000, dur;
+		arg amp=0.1, lpf=4000, dur;
 
 		var bpfl = EnvGen.ar(Env.linen(attackTime:0.01*dur,sustainTime:0.06*dur,releaseTime:0.89*dur,curve:\lin),doneAction:2);
 		var a = BPF.ar(WhiteNoise.ar(amp*SinOsc.ar(2,mul:0.2,add:1)),1600*bpfl);
@@ -825,7 +925,7 @@ SynthDef(\gloom,
 // x__________________________________________________
 SynthDef(\x,
 	{
-		arg freq, amp, wobbler=3,gate=1, sustain,vibrato=10;
+		arg freq, amp=0.1, wobbler=3,gate=1, sustain,vibrato=10;
 		var wobble = LFTri.ar(wobbler, mul:1.midicps);
 		var a = LFTri.ar(freq+wobble,mul:amp*SinOsc.ar(vibrato,mul:0.2,add:0.8));
 		var env = EnvGen.ar(Env.adsr(attackTime:0.01,decayTime:0.3,sustainLevel:0.9,releaseTime:1),gate, doneAction:2);
@@ -870,7 +970,7 @@ SynthDef(\brushsnare,
 //WAVE  __________________________________________________________________________________
 SynthDef(\wave,
 	{
-		arg out=0, amp= -20.dbamp, lpf,gate=1;
+		arg out=0, amp=0.1, lpf,gate=1;
 
 		var audio = LPF.ar(BrownNoise.ar(),lpf,mul:amp+0.dbamp);
 		var env = EnvGen.ar(Env.adsr(attackTime:0.03,decayTime:0.03,sustainLevel:0.1,releaseTime:0.2),gate:gate,doneAction:2);
@@ -912,7 +1012,7 @@ SynthDef(\wave,
 //Release___________________________________________________________________________
 SynthDef(\release,
 	{
-		arg amp= -20.dbamp, lpf=4000, dur;
+		arg amp=0.1, lpf=4000, dur;
 
 		var bpfl = EnvGen.ar(Env.linen(attackTime:0.01*dur,sustainTime:0.06*dur,releaseTime:0.89*dur,curve:\lin),doneAction:2);
 		var a = BPF.ar(WhiteNoise.ar(amp*SinOsc.ar(2,mul:0.2,add:1)),1600*bpfl);
@@ -931,7 +1031,7 @@ SynthDef(\release,
 //
 
 SynthDef(\bassa, {
-	arg out = 0, dt=0.3, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp, sustain;
+	arg out = 0, dt=0.3, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1, sustain;
 
 
 
@@ -962,7 +1062,7 @@ SynthDef(\bassa, {
 }).add;
 //Spec_____________________________________________________________________________________________________
 SynthDef(\spec, {
-	arg out = 0, dt=0.2, at=0.01,n=2,freq = 220,ad=100, gate=1,modPartial=4, curve= -4,index = 3, amp, sustain;
+	arg out = 0, dt=0.2, at=0.01,n=2,freq = 220,ad=100, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1, sustain;
 
 	var noise = WhiteNoise.ar(mul:amp);
 	var one;
