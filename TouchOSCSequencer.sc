@@ -81,7 +81,7 @@ TouchOSCSequencer : Object{
 
 			});
 
-			Jam.d1((i.asString++numSequencers).asSymbol, pFuncList,slow:this.slow);
+			Jam.d1((i.asString++numSequencers).asSymbol,\instrument, pFuncList,slow:this.slow);
 			Pbindef((i.asString++numSequencers).asSymbol, \midinote, Pseq([Pfunc({this.midiNoteArray[i]})].flatten,inf), \db, Pseq(this.volArray,inf));
 		});
 

@@ -9,7 +9,7 @@ Jam{
 	}
 
 	*soundTest{
-	{SinOsc.ar(440,mul:0.1)*EnvGen.ar(Env.perc(),doneAction:2)}.play
+		{SinOsc.ar(440,mul:0.1)*EnvGen.ar(Env.perc(),doneAction:2)}.play
 	}
 
 	*codeShare{
@@ -62,12 +62,86 @@ Jam{
 
 	}
 
+	*lpd8PatternController{
+
+		var width = 800/(3/2);
+		var height = 200/(3/2);
+		var patterns = Object!8;
+		var cc = (-80.dbamp)!8;
+		var windowBounds = Rect(0,0,width,height);
+		var patternTextFields = (Object!8);
+
+		var window = Window("LPD8",windowBounds);
+
+		MIDIClient.init;
+		MIDIIn.connectAll;
+
+		window.front;
+
+
+
+		for(0,7,{
+			|i|
+			var left = ((width/8)*(i%4)+(width/20/8));
+			// var textBounds = Rect(left:(width/8)*(i%4)+(width/20/8),top: 0.2*height+(60*((i/4).floor)),width: (9/10)*(width/8),height: 25);
+			var textBounds = Rect(left:left,top: 0.2*height+(60*((i/4).floor)),width: (9/10)*(width/8),height: 25);
+			// var staticTextBounds = Rect(left:left,top:0.15*height-20+60*((i/4).floor), width:(9/10)*(width/8),height: 25);
+			var staticTextBounds = Rect(left:((width/8)*(i%4))+((width/20)/8)+(((9/10)*(width/8))/2),top:0.15*height-20+60*((i/4).floor), width:(9/10)*(width/8),height: 25);
+			var staticText = StaticText(window, staticTextBounds);
+
+			staticText.string = (((i+4)%8)+1).asString;
+			patternTextFields[i]=TextField(window,textBounds);
+			patternTextFields[i].keyDownAction = {
+				|doc, char, mod, unicode, keycode, key|
+				if((mod==1048576)&& (key==16777220),{
+					patterns[((i+4)%8)] = Pdef(patternTextFields[i].string.asSymbol);
+					Pbindef(patterns[((i+4)%8)].key).quant=0.5;
+					Pbindef(patterns[((i+4)%8)].key,\db,Pfunc({cc[((i))]}));
+				});
+			};
+
+
+		});
+
+
+
+
+		MIDIdef(\lpd8Triggers,{
+			|val,nm,chan,src|
+			var j = (nm/12).floor;
+			nm = ((nm+4)%8);
+			// if(patterns[j][nm-1].isPlaying, {patterns[j][nm-1].stop;},  {patterns[j][nm-1].play;});
+			nm.postln;
+			patterns[nm].postln;
+			if(patterns[nm].isPlaying, {patterns[nm].stop;},{patterns[nm].play;})
+		},msgType:\noteOn,srcID:1627846547
+		);
+
+		MIDIdef(\launchKeyMiniCC,{
+			|val,nm,chan,src|
+
+			val = val.linexp(0,127,0.0001,1).ampdb;
+			val.postln;
+			cc[nm-1]=val;
+		},msgType:\control,srcID:1627846547
+		);
+		// Pdef(patterns[0].key,\db,Pfunc({cc[0]}));
+
+	}
+
+	*fireMeUp{
+		|phoneIP,deviceOSCPort=9000,recvPort=9000|
+		InterfaceGUI("Tablet",phoneIP, deviceOSCPort, recvPort, 6,16,1,1,false);
+		Jam.lpd8PatternController();
+		Jam.launchKeyGui();
+	}
+
 	*startEsp{
 
 		TempoClock.default=EspClock.new.start;
 		Tdef(\k,{1.wait;
-		"Tempo: ".post;
-		(TempoClock.tempo*60).postln;
+			"Tempo: ".post;
+			(TempoClock.tempo*60).postln;
 
 		}).play;
 	}
@@ -145,8 +219,8 @@ Jam{
 
 		});
 
-	/*	for(0,7,{
-			|i|
+		/*	for(0,7,{
+		|i|
 
 
 		});*/
@@ -158,7 +232,7 @@ Jam{
 
 			[val,nm,chan,src].postln;
 
-		},msgType:\noteOn,chan:0);
+		},msgType:\noteOn,chan:0,srcID:2002797388);
 
 		MIDIdef(\keyboardOff,{
 			|val,nm,chan,src|
@@ -167,7 +241,7 @@ Jam{
 
 			[val,nm,chan,src].postln;
 
-		},msgType:\noteOff,chan:0);
+		},msgType:\noteOff,chan:0,srcID:2002797388);
 
 		MIDIdef(\launchKeyMini,{
 			|val,nm,chan,src|
@@ -186,7 +260,7 @@ Jam{
 			);
 
 			[val,nm,chan,src].postln;
-		},msgType:\noteOn,chan:9
+		},msgType:\noteOn,chan:9,srcID:2002797388
 		);
 
 		MIDIdef(\launchKeyMiniCC,{
@@ -195,7 +269,7 @@ Jam{
 			val = val.linexp(0,127,0.0001,1).ampdb;
 
 			// val = (val*val*val*val/(127*127*127*127)).ampdb;
-/*
+			/*
 			Pbindef(patterns[nm-1].key).quant=0;
 			Pbindef(patterns[nm-1].key, \db, Pfunc({val},1));
 			Pbindef(patterns[nm-1].key).stop;
@@ -206,7 +280,7 @@ Jam{
 			// Pbindef(patterns[i].key,\db,Pfuncn(cc[i],inf));
 			// Pbindef(patterns[nm-1].key,\db,Pfuncn({cc[nm-1]},inf));
 			[val,nm,chan,src].postln;
-		},msgType:\control
+		},msgType:\control,srcID:2002797388
 		);
 		// Pdef(patterns[0].key,\db,Pfunc({cc[0]}));
 	}
@@ -232,7 +306,7 @@ Jam{
 
 
 	*setMelody{
-	|notes|
+		|notes|
 		Pdef(\m, Pbind(\midinote, Pseq(notes,inf)));
 	}
 
@@ -253,13 +327,13 @@ Jam{
 
 
 	*fadeParam{
-	|pattern,key,start,second,end|
+		|pattern,key,start,second,end|
 		Pbindef(pattern,key,Pseq([Pseq((start,second..end),1),Pseq([end],inf)],1));
 	}
 
 
 	*stop{
-	|key,time=0|
+		|key,time=0|
 
 		Tdef(\stop,{
 
@@ -267,7 +341,7 @@ Jam{
 				//This is an arbitrary amount of time, didn't feel like calculating.
 				(time/10).wait;
 				Pbindef(key,\db-1);
-		});
+			});
 
 			Pbindef(\key).stop;
 		}
@@ -282,9 +356,9 @@ Jam{
 		Tdef(\crash,
 			{
 				1016.do({
-				(instrument:\crash).play;
-				(time/1016).wait;
-		});
+					(instrument:\crash).play;
+					(time/1016).wait;
+				});
 
 			}
 		).play;
@@ -346,7 +420,7 @@ Jam{
 	}
 
 	*words{
-	|string|
+		|string|
 
 		var splitList = string.split($ ).asList;
 		var result = List[];
@@ -402,31 +476,31 @@ Jam{
 		});
 		^result;
 	}
-/*	*parseListString{
-		|list|
-		var string =list.asArray.asString;
-		resultlist = List[];
-		acc = "";
-		breakPoints= string.findAll(",",false,0)++string.findAll("[",false,1);
-		breakPoints= breakPoints.sort
-		offset = 0;
-		for(1,string.size-2,{
-			arg i;
+	/*	*parseListString{
+	|list|
+	var string =list.asArray.asString;
+	resultlist = List[];
+	acc = "";
+	breakPoints= string.findAll(",",false,0)++string.findAll("[",false,1);
+	breakPoints= breakPoints.sort
+	offset = 0;
+	for(1,string.size-2,{
+	arg i;
 
-			if (breakPoints.contains(i),
-
-
+	if (breakPoints.contains(i),
 
 
-			});
 
-		}*/
+
+	});
+
+	}*/
 
 	*subList{
-	|list,beg,end|
-			var newList=List[];
-			for(end,beg,{
-				arg i;
+		|list,beg,end|
+		var newList=List[];
+		for(end,beg,{
+			arg i;
 			newList.add(list[i]);
 		});
 		^newList.reverse
