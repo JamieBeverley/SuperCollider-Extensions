@@ -67,6 +67,23 @@ SynthDef(\saw6,{
 );
 
 
+SynthDef(\bass6,{
+	|freq, amp, out=0, gate=1, mod=2.5,sustain,at=0.01|
+
+	var audio, env,freq2,modulator;
+
+	freq2=freq/2;
+
+	modulator = SinOsc.ar(freq2*mod,mul:freq2*mod*XLine.ar(9,1,dur:at));
+
+	audio = SinOsc.ar(freq2 + modulator,mul:amp)+Pulse.ar(freq2/4,width:0.5,mul:amp/2);
+	env = EnvGen.ar(Env.adsr(attackTime:at),gate:gate,doneAction:2);
+
+	audio = LPF.ar(audio,freq:880)*env;
+	Out.ar(out,channelsArray:audio!2);
+	}
+).add;
+
 (
 SynthDef(\filterSweep,
 	{
@@ -174,14 +191,10 @@ SynthDef(\arpeg,
 ).add;
 
 
-
-SynthDef(\rest,{
-	arg dur;
-	var audio =SinOsc.ar(mul:-300.dbamp);
-	audio =audio*EnvGen.ar(envelope:Env.pairs([[0,0],[dur,0]]),doneAction:2);
-		Out.ar(0,[audio,audio]);
- }).add;
-
+(SynthDef(\rest,{
+	var audio = EnvGen.ar(Env.perc(level:0),doneAction:2);
+	Out.ar(0,audio);
+ }).add;);
 // Crash
 SynthDef(\crash,{
 /*	arg dur;
