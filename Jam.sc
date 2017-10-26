@@ -18,6 +18,95 @@ Jam{
 		Document.globalKeyDownAction = {addr.sendMsg("/"++name,Jam.getTenLines )}
 	}
 
+	*bootAgain{
+		~out = Synth.new(\out);
+		MIDIClient.init;
+		MIDIIn.connectAll;
+
+		(
+			MIDIdef(\lpd8Vol,{
+				|val,nm,chan,src|
+				var v = (val/127).postln;
+				nm.postln;
+				if (nm==1,{
+					~out.set(\db,(v*2).ampdb);
+
+				});
+				if (nm==2,{
+					v= ((v*v*v*v)*23000).clip(10,23000);
+					v.postln;
+					~out.set(\lpf, v);
+				});
+				if (nm==3,{
+					v= ((v*v*v*v)*23000).clip(10,23000);
+					v.postln;
+					~out.set(\hpf, v);
+				});
+				if (nm==4,{
+					~out.set(\reverb, v);
+				});
+
+			},msgType:\control);
+		);
+
+	}
+
+	*boot {
+		Tdef(\dumb,{
+			Server.default.options.memSize =32768;
+			Server.default.boot;
+			6.wait;
+
+			(Platform.userAppSupportDir++"/Extensions/Personal/Synths.scd").loadPaths;
+			~out = Synth.new(\out);
+			MIDIClient.init;
+			MIDIIn.connectAll;
+
+			(
+				MIDIdef(\lpd8Vol,{
+					|val,nm,chan,src|
+					var v = (val/127).postln;
+					nm.postln;
+					if (nm==1,{
+						~out.set(\db,(v*2).ampdb);
+
+					});
+					if (nm==2,{
+						v= ((v*v*v*v)*23000).clip(10,23000);
+						v.postln;
+						~out.set(\lpf, v);
+					});
+					if (nm==3,{
+						v= ((v*v*v*v)*23000).clip(10,23000);
+						v.postln;
+						~out.set(\hpf, v);
+					});
+					if (nm==4,{
+						~out.set(\reverb, v);
+					});
+
+				},msgType:\control);
+			);
+		}).play;
+
+
+	}
+
+	*startOutSynth{
+		Synth(\out);
+	}
+
+	*setLpf {
+		|lpf,resonance|
+		~out.set([\lpf,lpf]);
+		~out.set([\resonance, resonance]);
+	}
+
+	*setDb {
+		|db|
+		~out.set([\db,db]);
+	}
+
 	*getTenLines{
 
 		var a=Document.current.selectionStart;
