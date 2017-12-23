@@ -18,6 +18,95 @@ Jam{
 		Document.globalKeyDownAction = {addr.sendMsg("/"++name,Jam.getTenLines )}
 	}
 
+	*bootAgain{
+		~out = Synth.new(\out);
+		MIDIClient.init;
+		MIDIIn.connectAll;
+
+		(
+			MIDIdef(\lpd8Vol,{
+				|val,nm,chan,src|
+				var v = (val/127).postln;
+				nm.postln;
+				if (nm==1,{
+					~out.set(\db,(v*2).ampdb);
+
+				});
+				if (nm==2,{
+					v= ((v*v*v*v)*23000).clip(10,23000);
+					v.postln;
+					~out.set(\lpf, v);
+				});
+				if (nm==3,{
+					v= ((v*v*v*v)*23000).clip(10,23000);
+					v.postln;
+					~out.set(\hpf, v);
+				});
+				if (nm==4,{
+					~out.set(\reverb, v);
+				});
+
+			},msgType:\control);
+		);
+
+	}
+
+	*boot {
+		Tdef(\dumb,{
+			Server.default.options.memSize =32768;
+			Server.default.boot;
+			6.wait;
+
+			(Platform.userAppSupportDir++"/Extensions/Personal/Synths.scd").loadPaths;
+			~out = Synth.new(\out);
+			MIDIClient.init;
+			MIDIIn.connectAll;
+
+			(
+				MIDIdef(\lpd8Vol,{
+					|val,nm,chan,src|
+					var v = (val/127).postln;
+					nm.postln;
+					if (nm==1,{
+						~out.set(\db,(v*2).ampdb);
+
+					});
+					if (nm==2,{
+						v= ((v*v*v*v)*23000).clip(10,23000);
+						v.postln;
+						~out.set(\lpf, v);
+					});
+					if (nm==3,{
+						v= ((v*v*v*v)*23000).clip(10,23000);
+						v.postln;
+						~out.set(\hpf, v);
+					});
+					if (nm==4,{
+						~out.set(\reverb, v);
+					});
+
+				},msgType:\control);
+			);
+		}).play;
+
+
+	}
+
+	*startOutSynth{
+		Synth(\out);
+	}
+
+	*setLpf {
+		|lpf,resonance|
+		~out.set([\lpf,lpf]);
+		~out.set([\resonance, resonance]);
+	}
+
+	*setDb {
+		|db|
+		~out.set([\db,db]);
+	}
+
 	*getTenLines{
 
 		var a=Document.current.selectionStart;
@@ -310,20 +399,47 @@ Jam{
 		Pdef(\m, Pbind(\midinote, Pseq(notes,inf)));
 	}
 
+	*loadSuperDirtSynths{
+		Platform.case(
+			\osx, {(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;},
+			\linux, {(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;},
+			\windows, {(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SuperDirtSynths.scd").loadPaths;}
+		);
+	}
+
 	*loadSynths{
 
 		Server.default = Server.local;
 
 
+
 		Server.default.waitForBoot({
-			(Platform.userAppSupportDir.asString++"\\Extensions\\supercollider-Extensions\\Instruments.scd").loadPaths
-/*
-			Tdef (\work, {
-				"/Users/JamieBeverley/Desktop/SuperCollider Stuff/LoadPaths/SampleBuffers.scd".loadPaths;
-				(Platform.userAppSupportDir.asString++"\\Extensions\\supercollider-Extensions\\Instruments.scd").loadPaths
+
+					Platform.case(
+	\osx, {			Routine({
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
 				2.wait;
-				"/Users/JamieBeverley/Desktop/SuperCollider Stuff/LoadPaths/SampleInstruments.scd".loadPaths;
-			}).play;*/
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
+										(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;
+			}).play},
+	\linux, {Routine({
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
+				2.wait;
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;
+			}).play},
+	\windows, {		Tdef(\a,{
+				(Platform.userAppSupportDir.asString++"\\Extensions\\SuperCollider-Extensions\\Instruments.scd").loadPaths;
+					(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SampleBuffers.scd").loadPaths;
+				2.wait;
+					(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SampleInstruments.scd").loadPaths;
+				(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SuperDirtSynths.scd").loadPaths;
+			}).play;});
+
+
+
 		});
 	}
 

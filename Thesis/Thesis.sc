@@ -10,6 +10,10 @@ Seesaw{
 
 	}
 
+	*open{
+		"open ~/Library/Application\ Support/SuperCollider/Extensions/Personal/Thesis/Thesis.sc".unixCmd;
+	}
+
 	*start{
 		|unityIP="127.0.0.1"|
 		Seesaw.loadSynths();
@@ -20,6 +24,7 @@ Seesaw{
 	}
 
 	*stopPatterns{
+		Pdef(\kick).stop;
 		Pdef(\bass).stop;
 		Pdef(\hihat).stop;
 		Pdef(\hihat1).stop;
