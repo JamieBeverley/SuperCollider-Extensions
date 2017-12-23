@@ -404,12 +404,14 @@ Jam{
 		Server.default = Server.local;
 
 		Server.default.waitForBoot({
-			"~/Library/Application Support/SuperCollider/Extensions/Personal/Instruments.scd".loadPaths;
+			(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
+
 
 			Tdef (\work, {
 				"/Users/JamieBeverley/Desktop/SuperCollider Stuff/LoadPaths/SampleBuffers.scd".loadPaths;
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
 				2.wait;
-				"/Users/JamieBeverley/Desktop/SuperCollider Stuff/LoadPaths/SampleInstruments.scd".loadPaths;
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
 			}).play;
 		});
 	}

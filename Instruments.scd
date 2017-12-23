@@ -49,7 +49,37 @@ SynthDef(\madGrain,{
 	Out.ar(out, audio);
 }).add;*/
 
+SynthDef(\fmBass,
+	{
+		|amp, freq, mod=4, sustain,at=0.001,dt=0.01,release=0.5,detune=1,detunet=0.25|
+		var audio,env,modEnv;
+		var freq2 = XLine.ar(freq/2,freq*0.5*(detune.midiratio),sustain*detunet);
+		modEnv = EnvGen.ar(Env.new([0,1,0],[at,dt+release],curve:\welch));
+		audio = Mix.ar(SinOsc.ar( [1,3,1.5,0.5]*(freq2 + SinOsc.ar(freq2*6,mul:freq2*modEnv*mod))))*(-6.dbamp);
+		// audio = LPF.ar(audio,freq);
+		// audio = FreeVerb.ar(audio,room:0.4);
+		env = EnvGen.ar(Env.new([0,1,0.4,0.4,0],[at,dt,sustain-at-dt-release,release],curve:\welch),timeScale:sustain,doneAction:2);
 
+		audio = audio*env;
+
+		Out.ar(0, Pan2.ar(audio));
+	}
+).add;
+
+SynthDef(\click,
+	{
+		|amp, freq, mod=4, sustain,at=0.01,dt=0.01,release=0.15|
+		var audio,env,brilEnv,noiseEnv,high,highEnv;
+
+		audio = Mix.ar(SinOsc.ar((1,1.3..20.67)*30,mul:amp*(-20.dbamp)));
+
+		env = EnvGen.ar(Env.new([0,1,0],[0.0001,0.002]),doneAction:2);
+
+		audio = audio*env;
+
+		Out.ar(0, Pan2.ar(audio));
+	}
+).add;
 (
 SynthDef(\saw6,{
 	|amp, freq, out, sustain,gate=1,panFreq=0,panScatter=0,lpf=10000,rq=0.4|
