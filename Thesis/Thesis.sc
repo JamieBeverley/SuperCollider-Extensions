@@ -35,11 +35,11 @@ Seesaw{
 	*loadSynths{
 		Server.default.waitForBoot({
 			~mainBus = Bus.audio(Server.default,2).index;
-			~sn2 = Buffer.read(Server.default, "/Users/JamieBeverley/Desktop/samples/sn/ST0T0S3.wav");
+			~sn2 = Buffer.read(Server.default,"C:/Users/jamie/AppData/Local/SuperCollider/Extensions/Dirt-Samples/sn/ST0T0S7.wav");
 
 			Tdef(\loadSynths,{
 				2.wait;
-				"~/Desktop/Thesis/ThesisFinal/SuperCollider/Synths.scd".loadPaths;
+				"C:/Users/jamie/seesaw/SuperCollider/Synths.scd".loadPaths;
 				2.wait;
 				~outSynth = Synth(\out,addAction:\addToTail);
 				"synths loaded".postln;
@@ -58,7 +58,7 @@ Seesaw{
 		if (~diversity == nil,{~diversity =0});
 		if (~depth == nil,{~depth =0});
 
-		"~/Desktop/Thesis/ThesisFinal/SuperCollider//Patterns.scd".loadPaths;
+		"C:/Users/jamie/seesaw/SuperCollider/Patterns.scd".loadPaths;
 	}
 
 	*oscDefs{
