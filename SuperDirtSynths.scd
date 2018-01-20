@@ -26,7 +26,7 @@ SynthDef(\chordy,{
 
 SynthDef(\fmBass,
 	{
-		|amp, freq, mod=4, sustain,at=0.001,dt=0.01,release=0.5,detune=1,detunet=0.25|
+		|amp, freq, mod=4,out,pan, sustain,at=0.001,dt=0.01,release=0.5,detune=1,detunet=0.25|
 		var audio,env,modEnv;
 		var freq2 = XLine.ar(freq/2,freq*0.5*(detune.midiratio),sustain*detunet);
 		modEnv = EnvGen.ar(Env.new([0,1,0],[at,dt+release],curve:\welch));
@@ -43,7 +43,7 @@ SynthDef(\fmBass,
 
 SynthDef(\click,
 	{
-		|amp, freq, mod=4, sustain,at=0.01,dt=0.01,release=0.15|
+		|amp, freq, mod=4, out,pan,sustain,at=0.01,dt=0.01,release=0.15|
 		var audio,env,brilEnv,noiseEnv,high,highEnv;
 
 		audio = Mix.ar(SinOsc.ar((1,1.3..20.67)*30,mul:amp*(-20.dbamp)));

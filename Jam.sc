@@ -415,27 +415,27 @@ Jam{
 
 		Server.default.waitForBoot({
 
-					Platform.case(
-	\osx, {			Routine({
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
-				2.wait;
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
-										(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;
-			}).play},
-	\linux, {Routine({
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
-				2.wait;
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
+			Platform.case(
+				\osx, {			Routine({
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
+					2.wait;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
 					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;
-			}).play},
-	\windows, {		Tdef(\a,{
-				(Platform.userAppSupportDir.asString++"\\Extensions\\SuperCollider-Extensions\\Instruments.scd").loadPaths;
+				}).play},
+				\linux, {Routine({
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Instruments.scd").loadPaths;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleBuffers.scd").loadPaths;
+					2.wait;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SampleInstruments.scd").loadPaths;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/SuperDirtSynths.scd").loadPaths;
+				}).play},
+				\windows, {		Tdef(\a,{
+					(Platform.userAppSupportDir.asString++"\\Extensions\\SuperCollider-Extensions\\Instruments.scd").loadPaths;
 					(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SampleBuffers.scd").loadPaths;
-				2.wait;
+					2.wait;
 					(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SampleInstruments.scd").loadPaths;
-				(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SuperDirtSynths.scd").loadPaths;
+					(Platform.userAppSupportDir++"\\Extensions\\SuperCollider-Extensions\\SuperDirtSynths.scd").loadPaths;
 			}).play;});
 
 
@@ -624,6 +624,102 @@ Jam{
 		^newList.reverse
 	}
 
+
+	*bootVolca{
+
+		var synth;
+		var quant = 4;
+		var noteDowns = false!4;
+		var effects = [\amp,\lpf,\hpf,\pan,\reverb,\room,\pitch,\unassigned];
+		var defaultLastLoop=4;
+		var lastLoop=defaultLastLoop;
+		Server.default.waitForBoot({
+			MIDIIn.connectAll;
+			Routine({
+				SynthDef(\volca_beats,
+					{
+						|loop=0, lpf = 22000, hpf=10, amp = 1, channel =1, pan=0, pitch = 0,reverb =0.33,room=0.5|
+
+						var audio= AudioIn.ar(channel);
+						var busses =[];
+						var record = [];
+						var numLoops = 7;
+						audio = RLPF.ar(audio,freq:Clip.kr(lpf,20,hi:23000),rq:0.2);
+						audio = RHPF.ar(audio,freq:Clip.kr(hpf,20,23000),rq:0.2);
+
+
+						numLoops.do{
+							|i|
+							busses = busses.add(LocalBuf((Server.default.sampleRate*(i+1))/8));
+							RecordBuf.ar(inputArray:audio,bufnum:busses[i],run:Select.kr(loop,(0!(i)++[1]++(0!((numLoops-i))))));
+							record = record.add((PlayBuf.ar(busses[i].numChannels,bufnum:busses[i],trigger:Impulse.ar((i+1)/4),loop:1)));
+							// record = record.add(WhiteNoise.ar(mul:0.01));
+						};
+
+						audio = Select.ar(loop,[audio]++record);
+
+						audio = PitchShift.ar(audio,pitchRatio:pitch.midiratio);
+						audio = FreeVerb.ar(audio,mix:Clip.kr(reverb,0,1),room:Clip.kr(room,0,1));
+						audio = audio*amp;
+						// audio = Compander.ar(audio,audio,-20.dbamp,slopeBelow:1.5);
+						Out.ar(0,Pan2.ar(audio,pan));
+					}
+				).add;
+				1.wait;
+				synth= Synth(\volca_beats);
+
+				MIDIdef.noteOn(\volca_beats_lpd8_loopOn,
+					{
+						|vel,note|
+						var dur =((((TempoClock.beats*quant).ceil)/quant)-TempoClock.beats);
+						note = note-60+1;
+						lastLoop=note;
+						noteDowns[note-1]=true;
+
+						Routine{
+							(dur*TempoClock.tempo).wait;
+							synth.set(\loop,note);
+							"played".postln;
+						}.play;
+					},(60..63)
+				);
+				MIDIdef.noteOff(\volca_beatss_lpd8_loopOff,
+					{
+						|vel, note|
+						var dur = ((((TempoClock.beats*quant).ceil)/quant)-TempoClock.beats);
+						note = note-60+1;
+						noteDowns[note-1 ]=false;
+						Routine{
+							(dur*TempoClock.tempo).wait;
+							if( (noteDowns[0]||noteDowns[1]||noteDowns[2]||noteDowns[3]).not, {
+								synth.set(\loop,0);
+								lastLoop=defaultLastLoop;
+							});
+						}.play;
+					},(60..63)
+				);
+
+
+				MIDIdef.cc(\volca_beats_lpd8_effects,{
+					|val,k|
+
+					switch(k,
+						1,{synth.set(\amp,(val*20+16)/127)},
+						2,{synth.set(\lpf,((val*val/127/127)*24000).clip(20,24000))},
+						3,{synth.set(\hpf,((val*val/127/127)*24000).clip(20,24000))},
+						4,{synth.set(\pan, ((val/127)*2)-1 )},
+						5,{synth.set(\reverb, (val/127))},
+						6,{synth.set(\room, (val/127))},
+						7,{synth.set(\pitch, ((val/127)*12).round/12)},
+						8,{}
+					);
+
+				}
+				);
+				"volca booted".postln;
+			}).play;
+		});
+	}
 
 
 }
