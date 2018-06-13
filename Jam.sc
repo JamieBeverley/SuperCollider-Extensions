@@ -52,44 +52,96 @@ Jam{
 	}
 
 	*boot {
-		Tdef(\dumb,{
+		|outSynth=false|
+		var cmdPFunc;
+		Server.default.options.memSize =32768;
+
+		Server.default.waitForBoot({
+
+			if(outSynth ,{
+				~outBus = Bus.audio(Server.default,2);
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
+				MIDIClient.init;
+				MIDIIn.connectAll;
+
+				cmdPFunc = {
+					"Adding new out synth".postln;
+					Tdef(\uhg,{
+						0.1.wait;
+					~out = Synth.new(\out);
+					// MIDIIn.connectAll;
+					(
+						MIDIdef(\lpd8Vol,{
+							|val,nm,chan,src|
+							var v = (val/127).postln;
+							("num: "+nm).postln;
+							if (nm==1,{
+								~out.set(\db,(v*v).ampdb);
+							});
+							if (nm==2,{
+								v= ((v*v*v*v)*22000).clip(10,22000);
+								v.postln;
+								~out.set(\lpf, v);
+							});
+							if (nm==3,{
+								v= ((v*v*v*v)*22000).clip(10,22000);
+								v.postln;
+								~out.set(\hpf, v);
+							});
+							if (nm==4,{
+								~out.set(\reverb, v);
+							});
+						},msgType:\control);
+					);
+					}).play;
+				};
+				CmdPeriod.add(cmdPFunc);
+				cmdPFunc.value();
+			},{
+				~outBus = 0;
+				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
+			});
+		});
+
+		/*Tdef(\dumb,{
 			Server.default.options.memSize =32768;
 			Server.default.boot;
-			6.wait;
+			3.wait;
 
-			(Platform.userAppSupportDir++"/Extensions/Personal/Synths.scd").loadPaths;
-			~out = Synth.new(\out);
+			(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
 			MIDIClient.init;
 			MIDIIn.connectAll;
+			cmdPFunc = {
+				~out = Synth.new(\out);
+				// MIDIIn.connectAll;
+				(
+					MIDIdef(\lpd8Vol,{
+						|val,nm,chan,src|
+						var v = (val/127).postln;
+						nm.postln;
+						if (nm==1,{
+							~out.set(\db,(v*2).ampdb);
 
-			(
-				MIDIdef(\lpd8Vol,{
-					|val,nm,chan,src|
-					var v = (val/127).postln;
-					nm.postln;
-					if (nm==1,{
-						~out.set(\db,(v*2).ampdb);
-
-					});
-					if (nm==2,{
-						v= ((v*v*v*v)*23000).clip(10,23000);
-						v.postln;
-						~out.set(\lpf, v);
-					});
-					if (nm==3,{
-						v= ((v*v*v*v)*23000).clip(10,23000);
-						v.postln;
-						~out.set(\hpf, v);
-					});
-					if (nm==4,{
-						~out.set(\reverb, v);
-					});
-
-				},msgType:\control);
-			);
-		}).play;
-
-
+						});
+						if (nm==2,{
+							v= ((v*v*v*v)*23000).clip(10,23000);
+							v.postln;
+							~out.set(\lpf, v);
+						});
+						if (nm==3,{
+							v= ((v*v*v*v)*23000).clip(10,23000);
+							v.postln;
+							~out.set(\hpf, v);
+						});
+						if (nm==4,{
+							~out.set(\reverb, v);
+						});
+					},msgType:\control);
+				);
+			};
+			CmdPeriod.add(cmdPFunc);
+			cmdPFunc.value();
+		}).play;*/
 	}
 
 	*startOutSynth{
@@ -718,6 +770,78 @@ Jam{
 				);
 				"volca booted".postln;
 			}).play;
+		});
+	}
+
+	*smartphoneSoundscapes{
+		|processingPort=9003, nodePort=9000,visuals=false|
+		var processing = NetAddr.new("127.0.0.1", processingPort);
+		var node = NetAddr.new("127.0.0.1",port: nodePort);
+		var r=255;
+		var g=255;
+		var b=255;
+
+
+		OSCdef(\audience,{
+			|msg|
+			var sus, legato, dur, cps, delta;
+			var sample = "";
+			// msg.postln;
+			msg.size.do{
+				|i|
+				if(msg[i] == 'sustain',{sus = msg[i+1]});
+				if(msg[i] == 'legato',{legato = msg[i+1]});
+				if(msg[i] == 's', {sample = msg[i+1]});
+				if(msg[i] == 'cps', {cps = msg[i+1]});
+				if(msg[i] == 'delta', {delta = msg[i+1]});
+				if(msg[i] == 'backgroundR', {r = msg[i+1]});
+				if(msg[i] == 'backgroundG', {g = msg[i+1]});
+				if(msg[i] == 'backgroundB', {b = msg[i+1]});
+			};
+
+			if(sus == nil, {
+				if (legato !=nil,
+					{dur = (1/cps)*delta*legato},
+					{dur = (1/cps)*delta}
+				);
+			},{dur = sus}
+			);
+
+			// processing.sendMsg("/sound",sample,dur);
+			// processing.sendMsg("/backgroundColor",r,g,b);
+
+			node.sendBundle(0,["/play"]++(msg[1..]));
+
+		},path:'/play2',recvPort:57130);
+		if(visuals,{
+			OSCdef(\visuals,{
+				|msg|
+				var sus, legato, dur, cps, delta;
+				var sample = "";
+				// msg.postln;
+				msg.size.do{
+					|i|
+					if(msg[i] == 'sustain',{sus = msg[i+1]});
+					if(msg[i] == 'legato',{legato = msg[i+1]});
+					if(msg[i] == 's', {sample = msg[i+1]});
+					if(msg[i] == 'cps', {cps = msg[i+1]});
+					if(msg[i] == 'delta', {delta = msg[i+1]});
+					if(msg[i] == 'backgroundR', {r = msg[i+1]});
+					if(msg[i] == 'backgroundG', {g = msg[i+1]});
+					if(msg[i] == 'backgroundB', {b = msg[i+1]});
+				};
+
+				if(sus == nil, {
+					if (legato !=nil,
+						{dur = (1/cps)*delta*legato},
+						{dur = (1/cps)*delta}
+					);
+				},{dur = sus}
+				);
+
+				processing.sendMsg("/sound",sample,dur);
+				processing.sendMsg("/backgroundColor",r,g,b);
+			},path:'/play2',recvPort:NetAddr.langPort);
 		});
 	}
 

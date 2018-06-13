@@ -1,41 +1,182 @@
+var shaker = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Personal-Samples/shaker/HIE_Shaker_1.wav");
+var chevBuf = Buffer.alloc(s, 512, 1, {arg buf; buf.chebyMsg(amplitudes:[1,1,0.7,0.5,0.4,0.3])});
 
-var techno = Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/techno/000_0.wav");
-var bd = Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/bd/BTAA0DA.wav");
-var sn2 = Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/sn/ST0T0S3.wav");
-var clak= Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/clak/000_clak1.wav");
-var cp = Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/cp/HANDCLP0.wav");
-var hh = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/hh/000_hh3closedhh.wav");
-var toys = Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/toys/ClassicalMusic.wav");
-var tone = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/newnotes/000_0.wav" );
-var gunShot = Buffer.read(s, "/Users/JamieBeverley/Desktop/samples/ZZ Made/gunshot.wav");
-var wobble = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/bleep/laser-reverse-wobble.wav");
-var jvbass = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/jvbass/000_01.wav");
-var metal = Buffer.read(s ,"/Users/JamieBeverley/Desktop/samples/metal/000_0.wav");
+var timp = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Personal-Samples/timp/HIE_Timpani_1.wav");
 
-var drop = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/ZZ Made/Single Water Droplet-SoundBible.com-425249738.wav");
-var fred = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/ZZ Made/Fred.wav");
-var snap = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/snap.wav");
+var pai = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Personal-Samples/recordings/pai-swamp.wav");
+//2,10,17,24
+var kick17 = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Personal-Samples/kick/HIE_Kick_17.wav");
+
+var tamb = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Personal-Samples/tamb/HIE_Tambourine_2.wav");
 
 
-var hho = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/hh/007_hh3openhh.wav");
-var sna = Buffer.read(s,"/Users/JamieBeverley/Desktop/samples/hh/012_hh3snare2.wav");
+
+var kick = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Dirt-Samples/808bd/BD0075.WAV");
+
 ~outBus = Bus.audio(Server.default,2).index;
 
-b = Buffer.read(s,"~/Desktop/madmono.wav".standardizePath);
+SynthDef(\sine,
+	{
+		|out,pan=0,freq,amp,sustain,at=0.01,rt=0.5|
+		var audio = SinOsc.ar(freq,mul:amp);
+		var env = EnvGen.ar(Env.perc(attackTime:at,releaseTime:rt),timeScale:sustain,doneAction:2);
+		audio = audio*env;
+		Out.ar(~outBus,Pan2.ar(audio,pan));
+	}
+).add;
 
+// Load sample-based synths from personal-samples folder
+(
+"-- Loading samle-based synths:".postln;
+(PathName(Platform.userAppSupportDir++"\\downloaded-quarks\\personal-samples").entries).do{
+	|i|
+	var counter = 0;
+	i.files.do{
+		|j|
+		var buffer = Buffer.read(s,j.fullPath);
+		SynthDef((i.folderName.asString++"_"++counter),{
+			|amp, pitch=1, pos=0, sustain,pan=0|
+			var audio,env;
+
+			audio = PlayBuf.ar(2,buffer,pitch.midiratio,startPos:pos*BufFrames.kr(buffer.bufnum));
+
+			env = EnvGen.ar(Env.new([1,1,0],[sustain,0.01]),doneAction:2);
+			audio = Mix.ar(audio*env)*amp;
+
+			Out.ar(~outBus,Pan2.ar(audio,pan));
+
+		}).add;
+		counter=counter+1;
+	};
+	i.folderName.postln;
+	// PathName(i.asString);
+};
+);
 
 
 (
 SynthDef(\out,{
-	|lpf=24000, hpf=10, reverb,db=0|
+	|lpf=22000, hpf=10, reverb=0,db=0,hrq=1,lrq=1,room=0.3|
 	var audio = In.ar(~outBus,2)*(db.dbamp);
-	audio = FreeVerb.ar(audio,mix:reverb.clip(0,1),room:0.9,damp:0.9);
-	audio = LPF.ar(audio,lpf.clip(10,24000));//,1/(resonance.clip(0.0001,1)));
-	audio = HPF.ar(audio,hpf.clip(10,24000));
-	audio = Compander.ar(audio,audio,thresh:-10.dbamp,slopeAbove:1/10);
+	audio = FreeVerb.ar(audio,mix:Clip.kr(reverb,0,1),room:Clip.kr(room,0,1),damp:0.9);
+	audio = LPF.ar(audio, Clip.kr(lpf,10,22000));//,1/(resonance.clip(0.0001,1)));
+	audio = HPF.ar(audio,Clip.kr(hpf,10,22000));
+	audio = Compander.ar(audio,audio,-30.dbamp,slopeAbove:1/2.5,mul:3.dbamp);
+	audio = Compander.ar(audio,audio,thresh:-1.dbamp,slopeAbove:1/20); // limiter...
 	Out.ar(0,audio);
 }).add;
 );
+
+
+(
+SynthDef(\fut2, {
+	arg out = 0, rt=0.2, at=0.01,freq = 220,mod=4, curve= -4,index = 3, amp=0.1;
+	var hfo = SinOsc.ar(freq:freq*4,mul: freq*mod*2);
+	var envhfo= EnvGen.ar(Env.perc(attackTime:at,releaseTime:rt,curve:-3),doneAction:0)*hfo;
+	var audio = SinOsc.ar(freq:freq+envhfo,mul: amp);
+	var env = EnvGen.ar(Env.perc(at,releaseTime:rt,curve:-6),doneAction:2);
+
+	audio = Clip.ar(audio,lo:-0.2,hi:0.2);
+
+	audio = BPF.ar(audio,freq,rq:0.6);
+
+	audio = audio*env*(24.dbamp);
+	audio = audio +LPF.ar(audio,400,mul:(6.dbamp));
+
+	Out.ar( ~outBus,[audio,audio]);
+}).add;
+);
+
+SynthDef(\kick_m,
+	{
+	|freq,amp,sustain|
+
+		var audio, arpegio,arpegioFreqEnv,arpegioEnv,arpegDur,noise3, soft,softEnv,noise,noise2;
+		softEnv = EnvGen.ar(Env.perc(attackTime:0.2,releaseTime:sustain),doneAction:0);
+		arpegDur = 1/5.5;
+		audio = Mix.ar(PlayBuf.ar(1,kick,rate:0.85*(freq.cpsmidi%12).midiratio,doneAction:0));
+		audio = audio + LPF.ar(audio,200,mul:2.dbamp);
+
+		noise3 = RHPF.ar(WhiteNoise.ar(-40.dbamp),freq:Amplitude.kr(audio,attackTime:0.1,releaseTime:0.1).linlin(-1,1,5,22000),rq:0.1)*Line.ar(1,0,sustain);
+
+		soft = Mix.ar(SinOsc.ar([1,1.001,1.002,1.003,1.004]*freq*Line.kr(6,4,sustain/8))*Line.ar(1,0,sustain)*(-40.dbamp));
+		noise = Mix.ar(BPF.ar(WhiteNoise.ar,freq:[0,7,19,24,12,4,2,9,11,14,-12].midiratio*freq,rq:0.01)*(-18.dbamp))*Line.ar(1,0,sustain*1.5);
+
+		arpegioFreqEnv = EnvGen.kr(Env.circle((0,7..200).collect({|v,i|[v,v].clip(0,100)}).flatten.midiratio,[0.99,0.01]*arpegDur));
+		arpegioEnv = EnvGen.ar(Env.circle([0,1,0],[0.001,0.999]*arpegDur));
+		arpegio = Mix.ar(SinOsc.ar(freq*arpegioFreqEnv+SinOsc.ar(freq*arpegioFreqEnv*16,mul:freq*8)))*(-16.dbamp)*arpegioEnv;
+		// arpegio = arpegio*
+		arpegio = LPF.ar(arpegio,Clip.kr(freq,5,21000));
+		arpegio = arpegio*Line.ar(1,0,dur:sustain)*Line.ar(1,0,dur:sustain);
+
+				noise2 = [Dust.ar(Line.ar(200,50,dur:sustain)),Dust.ar(Line.ar(200,50,dur:sustain))]*Line.ar(1,0,sustain*4);
+
+		noise2 = noise2*EnvGen.ar(Env.new([0,0,1,0],[0.34,0.1,sustain]))*(-30.dbamp);
+
+		arpegio = arpegio+noise+soft+noise3;
+		arpegio = Compander.ar(arpegio,audio,thresh:(-30.dbamp),slopeBelow:1,slopeAbove:1/3,clampTime:0.01,relaxTime:0.2);
+
+
+		audio = audio+ arpegio+noise2;
+
+		audio = FreeVerb.ar(audio,0.3,0.8);
+		audio = Compander.ar(audio,audio,-35.dbamp,slopeAbove:2,mul:12.dbamp)*amp;
+		DetectSilence.ar(audio,amp:0.0001,doneAction:2);
+		Out.ar(~outBus,Pan2.ar(audio,0));
+}).add;
+
+SynthDef(\tamb_m,
+	{
+		|freq,amp,sustain,pan=0|
+		var sample,noise,pitch,coarse,audio,pitchEnv,pitchFreq;
+		coarse = 6;
+		sample = PlayBuf.ar(2,tamb);
+		sample = sample+PlayBuf.ar(2,shaker);
+
+		pitchEnv = EnvGen.ar(Env.perc(0.01,releaseTime:sustain*0.9),doneAction:0);
+		// pitchFreq = Mix.ar(([0,7,12].midiratio)*freq*1*XLine.kr(1,1,sustain/8));
+		// pitch = SinOsc.ar(pitchFreq);//+SinOsc.ar(freq*4,mul:freq*2));
+		pitch = Mix.ar(SinOsc.ar(freq*2*([0,7,19].midiratio)));//+SinOsc.ar(freq*4,mul:freq*2));
+
+		pitch = Latch.ar(pitch, Impulse.ar(SampleRate.ir /coarse));
+		// pitch = HPF.ar(pitch,3000);
+		pitch = pitch * pitchEnv*(-30.dbamp);
+
+
+		audio = (sample+pitch)*amp;
+		audio = FreeVerb.ar(audio,mix:0.4,room:0.7);
+
+		DetectSilence.ar(audio,doneAction:2);
+
+		Out.ar(~outBus,Pan2.ar(audio,pan));
+
+	}
+).add;
+
+SynthDef(\kick_m2,
+	{
+		|freq,amp,sustain,pan=0|
+
+		var kick, swamp, pitch, audio, env;
+
+		env = EnvGen.ar(Env.perc(releaseTime:sustain));
+		kick = PlayBuf.ar(2,kick17,rate:(freq.cpsmidi%12).midiratio);
+
+		swamp = PlayBuf.ar(2,pai,rate:2.5,startPos:Rand(0,0.5))*Line.ar(1,0,sustain/2);
+
+		pitch = Mix.ar(SinOsc.ar(freq*Line.ar(1,2,dur:sustain/16)*1*([0,12,-3,7].midiratio+Rand(-0,0.00))))*SinOsc.ar(4.3,mul:0.1,add:1);
+		pitch = pitch*env*(-32.dbamp);
+		audio = (kick+swamp+pitch)*amp;
+
+		// audio = FreeVerb.ar(audio,mix:0.2,room:0.1);
+
+		DetectSilence.ar(audio,doneAction:2);
+
+		Out.ar(~outBus,Pan2.ar(audio,pan));
+
+
+	}
+).add;
 
 
 SynthDef(\fmBass,
@@ -49,7 +190,7 @@ SynthDef(\fmBass,
 		// audio = FreeVerb.ar(audio,room:0.4);
 		env = EnvGen.ar(Env.new([0,1,0.4,0.4,0],[at,dt,sustain-at-dt-release,release],curve:\welch),timeScale:sustain,doneAction:2);
 
-		audio = audio*env;
+		audio = audio*env*amp;
 
 		Out.ar(~outBus, Pan2.ar(audio));
 	}
@@ -95,12 +236,7 @@ SynthDef(\chordy,{
 	Out.ar(~outBus, Pan2.ar(audio,pan));
 }).add;
 
-SynthDef(\madGrain,{
-	arg rate=1,pos=0,amp=0.1,out=0,sustain=1.0;
-	var audio = PlayBuf.ar(1,b.bufnum,rate:rate.clip(0,16)*BufRateScale.kr(b.bufnum),startPos:pos.clip(0,1)*BufFrames.kr(b.bufnum));
-	audio=audio*EnvGen.ar(Env([0,1,0],[sustain/2,sustain/2],curve:'welch'),doneAction:2);
-	Out.ar(~outBus,audio*(amp.clip(0,1)));
-}).add;
+
 
 
 (
@@ -163,14 +299,14 @@ SynthDef(\saw6,{
 	audio = RLPF.ar(audio,safeLpf,rq);
 	env = EnvGen.ar(Env.adsr(attackTime:0.5,decayTime:0.05,sustainLevel:0.8,releaseTime:3),gate:gate,doneAction:2);
 
-	audio = ~outBus*env;
-	Out.ar(out,Pan2.ar(audio,pos:SinOsc.ar(panFreq,mul:panScatter)));
+	audio = audio*env;
+	Out.ar(~outBus,Pan2.ar(audio,pos:SinOsc.ar(panFreq,mul:panScatter)));
 
 }).add;
 );
 (
 SynthDef(\stab2, {
-	|freq=110, amp=0.1, pan, lpf=880, gate=1,at=0.0001,dur=1,begin, end, out=0,sustain=1|
+	|freq=440, amp=0.1, pan, lpf=880, gate=1,at=0.0001,dur=1,begin, end, out=0,sustain=1|
 	var osc1,osc2,osc3,audio,env,lpfEnv;
 
 	osc1 = Mix.ar(SinOsc.ar([0.99,1,1.01]*freq,mul:amp));
@@ -904,43 +1040,7 @@ SynthDef(\full,
 
 //Future house fm synth_____________________________________________________________________________
 
-/*SynthDef(\fut, { arg bus = 0, dt=0.4, at=0.01,freq = 440, gate=1,modPartial = 8, curve= -8,index = 3, amp=0.1, dur;
 
-
-
-	var hfo = SinOsc.ar(freq:freq*modPartial,mul: freq*XLine.ar(12,4,dur:dur/5,doneAction:0),add:0);
-//	var hfo = SinOsc.ar(freq:freq*modPartial,mul: freq*EnvGen.ar(Env.,add:0);
-	var audio = SinOsc.ar(freq:freq+hfo,mul: amp).squared;
-	var env = EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:0.3,curve:curve),gate:gate,doneAction:2);
-
-	//hfo=hfo*EnvGen.ar(Env.pairs([[0,1],[dur,1]]),gate:gate,doneAction:2);
-	audio = audio*env;
-
-
-	Out.ar( bus,[audio,audio]);
-}).add;*/
-
-/*
-SynthDef(\fut, {
-	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1, sustain;
-
-
-
-	var hfo = SinOsc.ar(freq:freq*modPartial/4,mul: freq*modPartial);
-
-	var envhfo= EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:0.1,releaseTime:0.1,curve:-3),doneAction:0)*hfo;
-	var audio = SinOsc.ar(freq:freq+envhfo,mul: amp);
-	var env = EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:0.3,curve:curve),gate:gate,doneAction:2);
-
-	audio = LPF.ar(audio,freq:XLine.ar(10000,end:10,dur:at+dt+sustain,doneAction:0));
-
-
-	audio = audio*env;
-
-	audio=Compander.ar(audio,audio,-10.dbamp,slopeAbove:1/20,clampTime:0.001,relaxTime:0.5);
-
-	Out.ar( 0,[audio,audio]);
-}).add;*/
 
 SynthDef(\fm6, {
 	arg out = 0, freq = 220, gate=1,modPartial=5, curve= -4,index = 3, amp=0.01, sustain=1;
@@ -958,23 +1058,39 @@ SynthDef(\fm6, {
 	audio = audio*env;
 	audio=Compander.ar(audio,audio,20.dbamp,slopeAbove:1/20,clampTime:0.001,relaxTime:0.5);
 
-	Out.ar( 0,[audio,audio]);
+	Out.ar( ~outBus,[audio,audio]);
 }).add;
 
+
+SynthDef(\sawBass,
+	{
+		|amp, freq, gate=1, at=0.01,rt=0.9,pan=0, lpfMul=1,sustain, out|
+
+		var audio, env,lpfEnv;
+		audio = Shaper.ar(chevBuf ,Mix.ar(LPF.ar(Saw.ar(freq/4)*EnvGen.ar(Env.perc(attackTime:at,releaseTime:1-at,curve:-1),timeScale:sustain,doneAction:2),freq*lpfMul)), amp*(15.dbamp));
+
+		Out.ar(~outBus,Pan2.ar(audio,pan));
+	}
+).add;
+(
+
+
 SynthDef(\fut, {
-	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1,doneAction=2;
+	arg out = 0, dt=0.2, at=0.01,freq = 220, gate=1,modPartial=4, curve= -4,index = 3, amp=0.1;
 	var hfo = SinOsc.ar(freq:freq*modPartial/4,mul: freq*modPartial);
-	var envhfo= EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:0.1,releaseTime:0.1,curve:-3),doneAction:0)*hfo;
+	var envhfo= EnvGen.ar(Env.adsr(attackTime:at,decayTime:dt,sustainLevel:0.1,releaseTime:0.1,curve:-3),gate:gate,doneAction:0)*hfo;
 	var audio = SinOsc.ar(freq:freq+envhfo,mul: amp);
-	var env = EnvGen.ar(Env.adsr(attackTime:0.01,decayTime:dt,sustainLevel:0.3,curve:curve),gate:gate,doneAction:doneAction);
+	// var env = EnvGen.ar(Env.adsr(attackTime:0.01,decayTime:dt,sustainLevel:0.3,curve:curve),gate:gate,doneAction:2);
+	var env = EnvGen.ar(Env.perc(at,level:dt),doneAction:2);
 
 	audio = audio*env;
 
-	audio=Compander.ar(audio,audio,20.dbamp,slopeAbove:1/20,clampTime:0.001,relaxTime:0.5);
+	// audio=Compander.ar(audio,audio,20.dbamp,slopeAbove:1/20,clampTime:0.001,relaxTime:0.5);
 
 	Out.ar( ~outBus,[audio,audio]);
 }).add;
 
+);
 
 
 //Fm simple_____________________________________________________________________________________
