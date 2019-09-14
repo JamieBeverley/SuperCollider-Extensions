@@ -18,6 +18,45 @@ Jam{
 		Document.globalKeyDownAction = {addr.sendMsg("/"++name,Jam.getTenLines )}
 	}
 
+
+
+	*sampleChopper{
+		|file, outputFolder, bpm, offset=0, beatsPerPhrase=16|
+
+		var counter = 0;
+		var sampleDuration;
+		outputFolder.mkdir;
+		"chopping...".postln;
+		Server.default.waitForBoot({
+
+			var buffer = Buffer.read(Server.default, file,action:{
+
+				buffer.loadToFloatArray(action:{
+					|array|
+					var chans = buffer.numChannels;
+					buffer = Buffer.loadCollection(Server.default,array,chans,action:{
+						|buff|
+
+
+						var numBeats = buff.numFrames/buff.sampleRate*bpm/60;
+						var phraseDur = beatsPerPhrase/(bpm/60);
+						var samplesPerPhrase = phraseDur*buff.sampleRate;
+						var offsetInSamples = offset*buff.sampleRate;
+						(numBeats/beatsPerPhrase).floor.do{
+							|k|
+
+							buff.write(path:(outputFolder++"/"++k++".wav"),headerFormat:"WAV",sampleFormat:"int16",numFrames:buff.sampleRate*phraseDur,startFrame:k*samplesPerPhrase+offsetInSamples);
+						};
+						buff.free;
+						buffer.free;
+					});
+				});
+			});
+			"done".postln;
+		});
+	}
+
+
 	*bootAgain{
 		~out = Synth.new(\out);
 		MIDIClient.init;
@@ -52,95 +91,103 @@ Jam{
 	}
 
 	*boot {
-		|outSynth=false|
+		|superdirt=false,outSynth=true|
 		var cmdPFunc;
-		Server.default.options.memSize =32768;
+		Server.default.options.memSize =32768/2;
+		Server.default.options.numBuffers = 1024*4;
 
-		Server.default.waitForBoot({
+		if(superdirt,{
+			Server.default.waitForBoot({
+				SuperDirt.start(numOrbits:4);
+				Jam.loadSuperDirtSynths;
+			});
+		},{
 
-			if(outSynth ,{
-				~outBus = Bus.audio(Server.default,2);
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
-				MIDIClient.init;
-				MIDIIn.connectAll;
+			Server.default.waitForBoot({
 
-				cmdPFunc = {
-					"Adding new out synth".postln;
-					Tdef(\uhg,{
-						0.1.wait;
-					~out = Synth.new(\out);
-					// MIDIIn.connectAll;
-					(
-						MIDIdef(\lpd8Vol,{
-							|val,nm,chan,src|
-							var v = (val/127).postln;
-							("num: "+nm).postln;
-							if (nm==1,{
+				if(outSynth ,{
+					~outBus = Bus.audio(Server.default,2);
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
+					MIDIClient.init;
+					MIDIIn.connectAll;
+
+					cmdPFunc = {
+						"Adding new out synth".postln;
+						Tdef(\uhg,{
+							0.1.wait;
+							~out = Synth.new(\out);
+							// MIDIIn.connectAll;
+							(
+								/*								MIDIdef(\lpd8Vol,{
+								|val,nm,chan,src|
+								var v = (val/127).postln;
+								("num: "+nm).postln;
+								if (nm==1,{
 								~out.set(\db,(v*v).ampdb);
-							});
-							if (nm==2,{
+								});
+								if (nm==2,{
 								v= ((v*v*v*v)*22000).clip(10,22000);
 								v.postln;
 								~out.set(\lpf, v);
-							});
-							if (nm==3,{
+								});
+								if (nm==3,{
 								v= ((v*v*v*v)*22000).clip(10,22000);
 								v.postln;
 								~out.set(\hpf, v);
-							});
-							if (nm==4,{
+								});
+								if (nm==4,{
 								~out.set(\reverb, v);
-							});
-						},msgType:\control);
-					);
-					}).play;
-				};
-				CmdPeriod.add(cmdPFunc);
-				cmdPFunc.value();
-			},{
-				~outBus = 0;
-				(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
+								});
+								},msgType:\control);*/
+							);
+						}).play;
+					};
+					CmdPeriod.add(cmdPFunc);
+					cmdPFunc.value();
+				},{
+					~outBus = 0;
+					(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
+				});
 			});
 		});
-
 		/*Tdef(\dumb,{
-			Server.default.options.memSize =32768;
-			Server.default.boot;
-			3.wait;
+		Server.default.options.memSize =32768;
+		Server.default.boot;
+		3.wait;
 
-			(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
-			MIDIClient.init;
-			MIDIIn.connectAll;
-			cmdPFunc = {
-				~out = Synth.new(\out);
-				// MIDIIn.connectAll;
-				(
-					MIDIdef(\lpd8Vol,{
-						|val,nm,chan,src|
-						var v = (val/127).postln;
-						nm.postln;
-						if (nm==1,{
-							~out.set(\db,(v*2).ampdb);
+		(Platform.userAppSupportDir++"/Extensions/SuperCollider-Extensions/Synths.scd").loadPaths;
+		MIDIClient.init;
+		MIDIIn.connectAll;
+		cmdPFunc = {
+		~out = Synth.new(\out);
+		// MIDIIn.connectAll;
+		(
+		MIDIdef(\lpd8Vol,{
+		|val,nm,chan,src|
+		var v = (val/127).postln;
+		nm.postln;
+		if (nm==1,{
+		~out.set(\db,(v*2).ampdb);
 
-						});
-						if (nm==2,{
-							v= ((v*v*v*v)*23000).clip(10,23000);
-							v.postln;
-							~out.set(\lpf, v);
-						});
-						if (nm==3,{
-							v= ((v*v*v*v)*23000).clip(10,23000);
-							v.postln;
-							~out.set(\hpf, v);
-						});
-						if (nm==4,{
-							~out.set(\reverb, v);
-						});
-					},msgType:\control);
-				);
-			};
-			CmdPeriod.add(cmdPFunc);
-			cmdPFunc.value();
+		});
+		if (nm==2,{
+		v= ((v*v*v*v)*23000).clip(10,23000);
+		v.postln;
+		~out.set(\lpf, v);
+		});
+		if (nm==3,{
+		v= ((v*v*v*v)*23000).clip(10,23000);
+		v.postln;
+		~out.set(\hpf, v);
+		});
+		if (nm==4,{
+		~out.set(\reverb, v);
+		});
+		},msgType:\control);
+		);
+		};
+		CmdPeriod.add(cmdPFunc);
+		cmdPFunc.value();
 		}).play;*/
 	}
 
@@ -266,8 +313,6 @@ Jam{
 			cc[nm-1]=val;
 		},msgType:\control,srcID:1627846547
 		);
-		// Pdef(patterns[0].key,\db,Pfunc({cc[0]}));
-
 	}
 
 	*fireMeUp{
@@ -843,6 +888,44 @@ Jam{
 				processing.sendMsg("/backgroundColor",r,g,b);
 			},path:'/play2',recvPort:NetAddr.langPort);
 		});
+	}
+
+	*superDirt{
+		|numChannels=2, numOrbits=3, port=57120,sendAddr,path,visuals=false,visualsNetAddr,debug=false|
+
+
+		var cmdPFunc;
+		Server.default.options.memSize =32768;
+		Server.default.options.numBuffers = 1024*8;
+
+
+		Server.default.waitForBoot({
+			SuperDirt.start(numChannels:numChannels,numOrbits:numOrbits,port:port,sendAddr:sendAddr,path:path);
+			Jam.loadSuperDirtSynths;
+		});
+
+
+		if(visuals,{
+			if(visualsNetAddr.isNil,{visualsNetAddr = NetAddr.new("127.0.0.1",9000)});
+
+			cmdPFunc = {
+
+				OSCdef(\visuals,{
+					|msg|
+					if(debug,{msg.postln;});
+					msg[0] = '/tidal';
+					Routine({
+						0.2.wait;
+						visualsNetAddr.sendBundle(0,msg);
+					}).play;
+				},path:'/play2',recvPort:port);
+				"adding visuals oscdef".postln;
+			};
+			cmdPFunc.value();
+			CmdPeriod.add(cmdPFunc);
+		});
+
+
 	}
 
 

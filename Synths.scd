@@ -211,6 +211,28 @@ SynthDef(\click,
 	}
 ).add;
 
+
+SynthDef(\mallet,{
+
+	|freq,amp, mul, pan,sustain,out|
+
+	var audio,env0, env1,env2,env3;
+
+	env0 = EnvGen.ar(Env.pairs([[0,0],[0.049,0],[0.05,1],[0.9,0]],-2),timeScale:sustain,doneAction:0)*(-22.dbamp);
+	env1 = EnvGen.ar(Env.perc(0.001,0.99),timeScale:sustain,doneAction:2);
+	env2 = EnvGen.ar(Env.perc(0.001,0.5),timeScale:sustain)*(-8.dbamp);
+	// env3 = EnvGen.ar(Env.perc(0.001,0.3),timeScale:sustain)*(-22.dbamp);
+
+	env3 = EnvGen.ar(Env.pairs([[0,0],[0.03,0],[0.031,1],[0.9,0]],-8),timeScale:sustain,doneAction:0)*(-40.dbamp);
+
+	audio = Mix.ar(SinOsc.ar(freq*[3,1,10],mul:amp*[env0,env1,env3]));
+
+	audio = LPF.ar(audio,2000);
+
+	Out.ar(~outBus, Pan2.ar(audio,pan));
+	// OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env1));
+}).add;
+
 SynthDef(\chordy,{
 	|amp,freq,gate=1,at=0.01,dt=0.3,rt=1,pan=0|
 	var audio,env,scale,noiseEnv,noise;

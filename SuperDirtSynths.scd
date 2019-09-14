@@ -7,6 +7,85 @@ var tamb = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-
 var shaker = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Personal-Samples/shaker/HIE_Shaker_1.wav");
 var kick = Buffer.read(s,"C:/Users/jamie/AppData/Local/SuperCollider/downloaded-quarks/Dirt-Samples/808bd/BD0075.WAV");
 
+
+SynthDef(\saw9, {
+	|freq, amp, out, sustain, pan, attack=0.01, release=1,gate=1|
+	var audio, env;
+
+	audio = Mix.ar(Saw.ar(freq*Line.ar(16,1,attack*2)*0.25*[1,1.01]));
+	// audio = LPF.ar(audio,freq:1200);
+
+	env = EnvGen.ar(Env.new([0,1,1,0],[attack,sustain-attack-release,release]),timeScale:sustain,doneAction:2)*amp;
+	audio = audio*env;
+
+	OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
+}).add;
+
+SynthDef(\booj,
+	{
+		|freq,amp,gate,pan,sustain,out|
+		var audio;
+		var env;
+		// var freqEnv = EnvGen.ar(Env.perc(0.1,0.9),timeScale:sustain,doneAction:2);
+		env = EnvGen.ar(Env.perc(0.001,0.999),timeScale:sustain,doneAction:2);
+		// freq = freq*freqEnv;
+		freq = freq*XLine.ar(1,0.01,dur:sustain);
+
+
+		audio = Mix.ar(Saw.ar(freq,mul:(-20.dbamp)*amp*Line.ar(0,1,sustain))+SinOsc.ar(freq*[1,1.01,3],mul:amp*(5.dbamp)));//+SinOsc.ar(freq,mul:amp);
+
+		audio = LPF.ar(audio,800);
+
+		// audio = Compander.ar(audio,audio,-15.dbamp,slopeBelow:1,slopeAbove:1/2.5);
+
+		// audio = FreeVerb.ar(audio,room:0.5);
+		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
+}).add;
+
+SynthDef(\saw1, {
+	|freq, amp, out, sustain,pan, attack=0.1, release=1,gate=1|
+	var audio, env;
+
+	audio = Mix.ar(Saw.ar(freq*[1,1.01,1.003,1.004]));
+
+	env = EnvGen.ar(Env.new([0,1,1,0],[attack,sustain-attack-release,release]),timeScale:sustain,doneAction:2)*amp;
+	audio = audio*env;
+
+	OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
+}).add;
+
+
+SynthDef('nil', {
+	|out, sustain|
+	var a = EnvGen.ar(Env.new([0,0],[1]),timeScale:sustain);
+
+	OffsetOut.ar(out, DirtPan.ar(a, ~dirt.numChannels, 0, a));
+}).add;
+
+
+
+
+SynthDef(\mallet,{
+
+	|freq,amp, mul, pan,sustain,out|
+
+	var audio,env0, env1,env2,env3;
+
+	env0 = EnvGen.ar(Env.pairs([[0,0],[0.049,0],[0.05,1],[0.9,0]],-2),timeScale:sustain,doneAction:0)*(-22.dbamp);
+	env1 = EnvGen.ar(Env.perc(0.001,0.99),timeScale:sustain,doneAction:2);
+	env2 = EnvGen.ar(Env.perc(0.001,0.5),timeScale:sustain)*(-8.dbamp);
+	// env3 = EnvGen.ar(Env.perc(0.001,0.3),timeScale:sustain)*(-22.dbamp);
+
+	env3 = EnvGen.ar(Env.pairs([[0,0],[0.03,0],[0.031,1],[0.9,0]],-8),timeScale:sustain,doneAction:0)*(-40.dbamp);
+
+	audio = Mix.ar(SinOsc.ar(freq*[3,1,10],mul:amp*[env0,env1,env3]));
+
+	audio = LPF.ar(audio,2000);
+
+	OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env1));
+}).add;
+
+
 SynthDef(\kick_m2,
 	{
 		|freq,amp,sustain,pan,out|
@@ -152,6 +231,31 @@ SynthDef(\sine,
 	}
 ).add;
 
+(
+SynthDef(\riser,
+	{
+		|out,pan,freq,amp,sustain,at=0.99,rt=0.01|
+		var audio = WhiteNoise.ar(mul:amp);
+		var env = EnvGen.ar(Env.xyc([[0,0,6],[at,1,-3],[at+rt,0,03]]),timeScale:sustain,doneAction:2);
+
+		audio = HPF.ar(audio,freq:XLine.kr(freq,20000,sustain));
+	audio = audio*env;	OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
+	}
+).add;
+);
+
+(
+SynthDef(\siner,
+	{
+		|out,pan,freq,amp,sustain,at=0.9,rt=0.1|
+		var audio = SinOsc.ar(freq,mul:amp);
+		var env = EnvGen.ar(Env.xyc([[0,0,3],[at,1,3],[at+rt,0,3]]),timeScale:sustain);
+		audio = audio*env;
+		OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
+	}
+).add;
+);
+
 SynthDef(\fmBass,
 	{
 		|amp, freq, mod=4,out,pan, sustain,at=0.001,dt=0.01,release=0.5,detune=1,detunet=0.25|
@@ -195,6 +299,38 @@ SynthDef(\sawBass,
 	}
 ).add;
 
+SynthDef(\fm9, {
+	|freq=110, amp=0.1, pan, lpf=880, modPartial=1,gate=1,dur=1,begin, end, out=0,sustain=1|
+	var len = end-begin;
+	var audio;
+	var env;
+	freq = freq*0.5;
+	audio= Mix.ar(SinOsc.ar(freq+SinOsc.ar(freq*1,mul:freq*([3,4]))*Line.ar(8,1,sustain/100),mul:amp));
+	// var fifth = SinOsc.ar(freq*1.5,mul:amp);
+	env = EnvGen.ar(Env.perc(0.001,0.999),timeScale:sustain,gate:gate,timeScale:sustain,doneAction:2);
+	// audio = (audio+fifth);
+	audio = audio*env;
+	// audio = LPF.ar(audio,4000);
+
+	OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
+}).add;
+
+(
+SynthDef(\fm10, {
+	|freq=110,at =0.001, amp=0.1, pan, mod=1,gate=1,dur=1,begin, end, out=0,sustain=1|
+	var len = end-begin;
+	var audio;
+	var env;
+	freq = freq*0.5;
+	audio= Mix.ar(SinOsc.ar(freq+SinOsc.ar(freq*1,mul:freq*mod*([3,4]))*Line.ar(8,1,sustain/100),mul:amp));
+	env = EnvGen.ar(Env.perc(at,sustain-at),timeScale:sustain,gate:gate,timeScale:sustain,doneAction:2);
+	// audio = (audio+fifth);
+	audio = audio*env;
+	// audio = LPF.ar(audio,4000);
+
+	OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
+}).add;
+);
 
 SynthDef(\fif, {
 	|freq=110, amp=0.1, pan, lpf=880, modPartial=1,gate=1,at=0.0001,dur=1,begin, end, out=0,sustain=1|
@@ -711,3 +847,24 @@ SynthDef(\chord,
 		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
 	}
 ).add;
+
+
+
+(
+SynthDef(\chord2,
+	{
+	|freq=440, amp=0.1, out=0, at=0.5, rt=2, lpf,pan, sustain=1,gate=1,lfoFreq=0.25,resonance=0.15, panScatter=0|
+		var audio,env, lpfEnv,lfo, mod, modEnv;
+		amp = amp.clip(0,1);
+
+		env = EnvGen.ar(Env.xyc([[0,0,3],[0.001,1,-4],[0.03,0.3,0],[0.4,0.3,4],[1,0]]),timeScale:sustain,doneAction:2);
+
+		audio = Mix.ar(SinOsc.ar([1,7.midiratio,10.midiratio]*freq+SinOsc.ar([1,7.midiratio,10.midiratio]*freq*32,mul:freq*16),mul:[1,0.25,0.2]*amp));
+
+		audio = LPF.ar(audio,freq:freq*4*SinOsc.ar(1*XLine.ar(1,2,2),phase:6*pi/4,add:1,mul:0.3));
+
+		audio = audio*env*(6.dbamp);
+		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
+	}
+).add;
+)
