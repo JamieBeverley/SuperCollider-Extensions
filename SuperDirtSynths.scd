@@ -90,56 +90,56 @@ SynthDef(\mallet,{
 );
 
 
-SynthDef(\kick_m2,
-	{
-		|freq,amp,sustain,pan,out|
-
-		var kick, swamp, pitch, audio, env,dirtEnv;
-
-		env = EnvGen.ar(Env.perc(releaseTime:sustain));
-		kick = PlayBuf.ar(2,k,rate:(freq.cpsmidi%12).midiratio);
-
-		swamp = PlayBuf.ar(2,j,rate:2.5,startPos:Rand(0,0.5))*Line.ar(1,0,sustain/2);
-
-		pitch = Mix.ar(SinOsc.ar(freq*Line.ar(1,2,dur:sustain/16)*1*([0,12,-3,7].midiratio+Rand(-0,0.00))))*SinOsc.ar(4.3,mul:0.1,add:1);
-		pitch = pitch*env*(-32.dbamp);
-		audio = (kick+swamp+pitch)*amp;
-
-		dirtEnv = EnvGen.ar(Env.new([0,1,1,0],[0.01,0.98,0.01]),timeScale:sustain,doneAction:2);
-
-		audio = audio*dirtEnv;
-		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, dirtEnv));
-
-	}
-).add;
-
-
-
-SynthDef(\tamb_m,
-	{
-		|freq,amp,sustain,pan=0,out|
-		var sample,noise,pitch,coarse,audio,pitchEnv,pitchFreq,dirtEnv;
-		coarse = 6;
-		sample = PlayBuf.ar(2,tamb);
-		sample = sample+PlayBuf.ar(2,shaker);
-
-		pitchEnv = EnvGen.ar(Env.perc(0.01,releaseTime:sustain*0.9),doneAction:0);
-		pitch = Mix.ar(SinOsc.ar(freq*2*([0,7,19].midiratio)));
-		pitch = Latch.ar(pitch, Impulse.ar(SampleRate.ir /coarse));
-		pitch = pitch * pitchEnv*(-30.dbamp);
-		audio = (sample+pitch)*amp;
-		audio = FreeVerb.ar(audio,mix:0.4,room:0.7);
-
-		dirtEnv = EnvGen.ar(Env.new([0,1,1,0],[0.01,0.98,0.01]),timeScale:sustain,doneAction:2);
-		audio= audio * dirtEnv;
-
-		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, dirtEnv));
-
-	}
-).add;
+// SynthDef(\kick_m2,
+// 	{
+// 		|freq,amp,sustain,pan,out|
+//
+// 		var kick, swamp, pitch, audio, env,dirtEnv;
+//
+// 		env = EnvGen.ar(Env.perc(releaseTime:sustain));
+// 		kick = PlayBuf.ar(2,k,rate:(freq.cpsmidi%12).midiratio);
+//
+// 		swamp = PlayBuf.ar(2,j,rate:2.5,startPos:Rand(0,0.5))*Line.ar(1,0,sustain/2);
+//
+// 		pitch = Mix.ar(SinOsc.ar(freq*Line.ar(1,2,dur:sustain/16)*1*([0,12,-3,7].midiratio+Rand(-0,0.00))))*SinOsc.ar(4.3,mul:0.1,add:1);
+// 		pitch = pitch*env*(-32.dbamp);
+// 		audio = (kick+swamp+pitch)*amp;
+//
+// 		dirtEnv = EnvGen.ar(Env.new([0,1,1,0],[0.01,0.98,0.01]),timeScale:sustain,doneAction:2);
+//
+// 		audio = audio*dirtEnv;
+// 		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, dirtEnv));
+//
+// 	}
+// ).add;
 
 
+//
+// SynthDef(\tamb_m,
+// 	{
+// 		|freq,amp,sustain,pan=0,out|
+// 		var sample,noise,pitch,coarse,audio,pitchEnv,pitchFreq,dirtEnv;
+// 		coarse = 6;
+// 		sample = PlayBuf.ar(2,tamb);
+// 		sample = sample+PlayBuf.ar(2,shaker);
+//
+// 		pitchEnv = EnvGen.ar(Env.perc(0.01,releaseTime:sustain*0.9),doneAction:0);
+// 		pitch = Mix.ar(SinOsc.ar(freq*2*([0,7,19].midiratio)));
+// 		pitch = Latch.ar(pitch, Impulse.ar(SampleRate.ir /coarse));
+// 		pitch = pitch * pitchEnv*(-30.dbamp);
+// 		audio = (sample+pitch)*amp;
+// 		audio = FreeVerb.ar(audio,mix:0.4,room:0.7);
+//
+// 		dirtEnv = EnvGen.ar(Env.new([0,1,1,0],[0.01,0.98,0.01]),timeScale:sustain,doneAction:2);
+// 		audio= audio * dirtEnv;
+//
+// 		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, dirtEnv));
+//
+// 	}
+// ).add;
 
+
+/*(
 SynthDef(\kick_m,
 	{
 	|freq,amp,sustain,pan,out|
@@ -174,7 +174,7 @@ SynthDef(\kick_m,
 		audio= audio * dirtEnv*(9.dbamp);
 		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, dirtEnv));
 }).add;
-
+);*/
 
 
 (
@@ -226,6 +226,7 @@ SynthDef(\sub,
 		OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
 }).add;
 
+(
 SynthDef(\sine,
 	{
 		|out,pan,freq,amp,sustain,at=0.01,rt=0.5|
@@ -234,7 +235,8 @@ SynthDef(\sine,
 	audio = audio*env;	OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
 	}
 ).add;
-
+);
+/*
 (
 SynthDef(\sine,
 	{
@@ -244,7 +246,7 @@ SynthDef(\sine,
 	audio = audio*env;	OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
 	}
 ).add;
-);
+);*/
 
 
 (
@@ -272,6 +274,7 @@ SynthDef(\siner,
 ).add;
 );
 
+(
 SynthDef(\fmBass,
 	{
 		|amp, freq, mod=4,out,pan, sustain,at=0.001,dt=0.01,release=0.5,detune=1,detunet=0.25|
@@ -288,7 +291,8 @@ SynthDef(\fmBass,
 		OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
 	}
 ).add;
-
+);
+(
 SynthDef(\click,
 	{
 		|amp, freq, mod=4, out,pan,sustain,at=0.01,dt=0.01,release=0.15|
@@ -303,7 +307,7 @@ SynthDef(\click,
 		OffsetOut.ar(out,DirtPan.ar(audio,~dirt.numChannels,pan,env));
 	}
 ).add;
-
+);
 SynthDef(\sawBass,
 	{
 		|amp, freq, gate=1, at=0.01,rt=0.9,pan, lpfMul=1,sustain, out|
@@ -314,7 +318,7 @@ SynthDef(\sawBass,
 		OffsetOut.ar(out, DirtPan.ar(audio, ~dirt.numChannels, pan, env));
 	}
 ).add;
-Env.xyc([[0,0,4],[0.1,1,-2],[1,0,2]]).plot
+
 (
 SynthDef(\fm1, {
 	|freq=110, amp=0.1, pan, lpf=880, attack=0.5, release=0.5,modPartial=1,gate=1,dur=1,begin, end, out=0,sustain=1, legato=1|

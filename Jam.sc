@@ -818,6 +818,59 @@ Jam{
 		});
 	}
 
+	*deadMidi{
+		var on, off, cc, osc, lpd8;
+		MIDIClient.init;
+
+		// MidiOut
+		~minilogue = MIDIOut.newByName("Tbox 2X2", "Tbox 2X2 MIDI 1");
+		~dirt.soundLibrary.addMIDI(\minilogue, ~minilogue);
+		~volca = MIDIOut.newByName("Tbox 2X2", "Tbox 2X2 MIDI 2");
+		~dirt.soundLibrary.addMIDI(\volca, ~volca);
+
+		// MIDIIn
+		MIDIClient.sources.do{
+			|i,index|
+			if(i.asString=="MIDIEndPoint(\"LPD8\", \"LPD8 MIDI 1\")",{lpd8=index});
+		};
+		if(lpd8!=nil,{
+
+		MIDIIn.connect(inport:lpd8,device:MIDIClient.sources.at(lpd8));
+		},{
+			"LPD8 MIDI controller not found".warn;
+		});
+		osc = NetAddr.new("127.0.0.1", 6010);
+
+		on = MIDIFunc.noteOn({ |val, num, chan, src|
+			osc.sendMsg("/ctrl", num.asString, val/127);
+		},);
+
+		off = MIDIFunc.noteOff({ |val, num, chan, src|
+			osc.sendMsg("/ctrl", num.asString, 0);
+		});
+
+		cc = MIDIFunc.cc({ |val, num, chan, src|
+			osc.sendMsg("/ctrl", num.asString, val/127);
+		});
+
+		if (~stopMidiToOsc != nil, {
+			~stopMidiToOsc.value;
+		});
+
+		~stopMidiToOsc = {
+			on.free;
+			off.free;
+			cc.free;
+		};
+	}
+
+	*superDirt{
+		Server.default.options.memSize = 16384;
+		Server.default.latency = 0.4;
+		SuperDirt.start(server:Server.default);
+		Jam.loadSuperDirtSynths;
+	}
+
 	*smartphoneSoundscapes{
 		|processingPort=9003, nodePort=9000,visuals=false|
 		var processing = NetAddr.new("127.0.0.1", processingPort);
@@ -890,43 +943,43 @@ Jam{
 		});
 	}
 
-	*superDirt{
-		|numChannels=2, numOrbits=3, port=57120,sendAddr,path,visuals=false,visualsNetAddr,debug=false|
-
-
-		var cmdPFunc;
-		Server.default.options.memSize =32768;
-		Server.default.options.numBuffers = 1024*8;
-
-
-		Server.default.waitForBoot({
-			SuperDirt.start(numChannels:numChannels,numOrbits:numOrbits,port:port,sendAddr:sendAddr,path:path);
-			Jam.loadSuperDirtSynths;
-		});
-
-
-		if(visuals,{
-			if(visualsNetAddr.isNil,{visualsNetAddr = NetAddr.new("127.0.0.1",9000)});
-
-			cmdPFunc = {
-
-				OSCdef(\visuals,{
-					|msg|
-					if(debug,{msg.postln;});
-					msg[0] = '/tidal';
-					Routine({
-						0.2.wait;
-						visualsNetAddr.sendBundle(0,msg);
-					}).play;
-				},path:'/play2',recvPort:port);
-				"adding visuals oscdef".postln;
-			};
-			cmdPFunc.value();
-			CmdPeriod.add(cmdPFunc);
-		});
-
-
-	}
+	// *superDirt{
+	// 	|numChannels=2, numOrbits=3, port=57120,sendAddr,path,visuals=false,visualsNetAddr,debug=false|
+	//
+	//
+	// 	var cmdPFunc;
+	// 	Server.default.options.memSize =32768;
+	// 	Server.default.options.numBuffers = 1024*8;
+	//
+	//
+	// 	Server.default.waitForBoot({
+	// 		SuperDirt.start(numChannels:numChannels,numOrbits:numOrbits,port:port,sendAddr:sendAddr,path:path);
+	// 		Jam.loadSuperDirtSynths;
+	// 	});
+	//
+	//
+	// 	if(visuals,{
+	// 		if(visualsNetAddr.isNil,{visualsNetAddr = NetAddr.new("127.0.0.1",9000)});
+	//
+	// 		cmdPFunc = {
+	//
+	// 			OSCdef(\visuals,{
+	// 				|msg|
+	// 				if(debug,{msg.postln;});
+	// 				msg[0] = '/tidal';
+	// 				Routine({
+	// 					0.2.wait;
+	// 					visualsNetAddr.sendBundle(0,msg);
+	// 				}).play;
+	// 			},path:'/play2',recvPort:port);
+	// 			"adding visuals oscdef".postln;
+	// 		};
+	// 		cmdPFunc.value();
+	// 		CmdPeriod.add(cmdPFunc);
+	// 	});
+	//
+	//
+	// }
 
 
 }
