@@ -819,23 +819,27 @@ Jam{
 	}
 
 	*deadMidi{
-		var on, off, cc, osc, lpd8;
+		var on, off, cc, osc, lpd8,volcaName, minilogueName;
 		MIDIClient.init;
 
+		Platform.case(
+			\osx, {volcaName="Midi Out 2";minilogueName="Midi Out 1";},
+			\linux, {volcaName="Tbox 2X2 MIDI 2";minilogueName="Tbox 2X2 MIDI 1";},
+			\windows, {volcaName="Midi In 2";minilogueName="Midi In 1";}
+		);
 		// MidiOut
-		~minilogue = MIDIOut.newByName("Tbox 2X2", "Tbox 2X2 MIDI 1");
+		~minilogue = MIDIOut.newByName("Tbox 2X2",portName:  minilogueName);
 		~dirt.soundLibrary.addMIDI(\minilogue, ~minilogue);
-		~volca = MIDIOut.newByName("Tbox 2X2", "Tbox 2X2 MIDI 2");
+		~volca = MIDIOut.newByName("Tbox 2X2",portName:  volcaName);
 		~dirt.soundLibrary.addMIDI(\volca, ~volca);
 
 		// MIDIIn
 		MIDIClient.sources.do{
 			|i,index|
-			if(i.asString=="MIDIEndPoint(\"LPD8\", \"LPD8 MIDI 1\")",{lpd8=index});
+			if(i.asString.contains("LPD8"),{lpd8=index});
 		};
 		if(lpd8!=nil,{
-
-		MIDIIn.connect(inport:lpd8,device:MIDIClient.sources.at(lpd8));
+			MIDIIn.connect(inport:lpd8,device:MIDIClient.sources.at(lpd8));
 		},{
 			"LPD8 MIDI controller not found".warn;
 		});
@@ -862,6 +866,8 @@ Jam{
 			off.free;
 			cc.free;
 		};
+
+
 	}
 
 	*superDirt{
